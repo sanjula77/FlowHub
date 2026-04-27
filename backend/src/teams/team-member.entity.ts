@@ -18,6 +18,7 @@ import { User } from '../users/user.entity';
  */
 export enum TeamMemberRole {
   OWNER = 'OWNER',
+  MANAGER = 'MANAGER',
   MEMBER = 'MEMBER',
 }
 
@@ -56,7 +57,7 @@ export class TeamMember {
   @Column({ name: 'team_id' })
   teamId: string;
 
-  // Team-level role (OWNER | MEMBER)
+  // Team-level role (OWNER | MANAGER | MEMBER)
   @Column({
     type: 'enum',
     enum: TeamMemberRole,

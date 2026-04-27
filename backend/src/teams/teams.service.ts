@@ -186,33 +186,31 @@ export class TeamsService {
   }
 
   /**
-   * Get user's own team
-   * Business rule: Users can only see their own team
+   * Get all teams the current user belongs to
    */
-  async getMyTeam(user: User): Promise<TeamResponseDto> {
-    // Validate user is not soft-deleted
+  async getMyTeams(user: User): Promise<TeamResponseDto[]> {
     if (user.deletedAt) {
       throw new UnauthorizedException('User account is inactive');
     }
 
-    // Validate user has a team
-    if (!user.teamId) {
-      throw new NotFoundException('User does not belong to any team');
+    const memberships = await this.teamMemberRepository.findByUserId(user.id);
+    if (!memberships.length) {
+      return [];
     }
 
-    // Get user's team
-    const team = await this.teamRepository.findById(user.teamId);
-    if (!team) {
-      throw new NotFoundException('Team not found');
-    }
+    const teams = await Promise.all(
+      memberships.map((m) => this.teamRepository.findById(m.teamId)),
+    );
 
-    // Additional security: Verify user still belongs to this team
-    // (in case team was deleted or user was moved)
-    if (team.deletedAt) {
-      throw new NotFoundException('Team not found');
-    }
+    const roleByTeamId = new Map(memberships.map((m) => [m.teamId, m.role]));
 
-    return this.toResponseDto(team);
+    return teams
+      .filter((t) => t && !t.deletedAt)
+      .map((t) => {
+        const dto = this.toResponseDto(t!);
+        dto.userRole = roleByTeamId.get(t!.id) as 'OWNER' | 'MANAGER' | 'MEMBER' | undefined;
+        return dto;
+      });
   }
 
   /**
@@ -244,14 +242,6 @@ export class TeamsService {
     // Check if user is team owner of the target team (using TeamMember)
     const isTeamOwner = await this.isTeamOwnerOfTeam(admin, teamId);
 
-    console.log('addUserToTeam Auth Check:', {
-      adminId: admin.id,
-      teamId,
-      isSystemAdmin,
-      isTeamOwner,
-      adminRole: admin.role,
-    });
-
     if (!isSystemAdmin && !isTeamOwner) {
       throw new ForbiddenException(
         'Only team owners or system administrators can add users to teams',
@@ -264,56 +254,34 @@ export class TeamsService {
       throw new NotFoundException('User not found');
     }
 
-    // Validate target user is not soft-deleted
     if (targetUser.deletedAt) {
       throw new BadRequestException('Cannot add inactive user to team');
     }
 
-    // Prevent cross-team access: Cannot add user from different team
-    if (targetUser.teamId && targetUser.teamId !== teamId) {
-      throw new ForbiddenException(
-        'Cannot add user from another team. User must be removed from their current team first.',
-      );
-    }
-
-    // Prevent adding user to same team they're already in
-    if (targetUser.teamId === teamId) {
-      throw new ConflictException('User is already a member of this team');
-    }
-
-    // Add user to team (update user's teamId)
-    await this.userRepository.update(userId, {
-      teamId: teamId,
-    });
-
-    // Create TeamMember record if it doesn't exist
+    // Check if already a member
     const existingMember = await this.teamMemberRepository.findByUserAndTeam(
       userId,
       teamId,
     );
-    if (!existingMember) {
-      await this.teamMemberRepository.create({
-        userId: userId,
-        teamId: teamId,
-        role: TeamMemberRole.MEMBER,
-      });
+    if (existingMember) {
+      throw new ConflictException('User is already a member of this team');
     }
 
-    // Return updated user info (without password)
-    const updatedUser = await this.userRepository.findById(userId);
-    if (!updatedUser) {
-      throw new NotFoundException('User not found after update');
-    }
+    // Create TeamMember record
+    await this.teamMemberRepository.create({
+      userId: userId,
+      teamId: teamId,
+      role: TeamMemberRole.MEMBER,
+    });
 
     const teamName = targetTeam.name || 'team';
 
     return {
       message: `User ${targetUser.email} has been added to team ${teamName}`,
       user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        teamId: updatedUser.teamId,
-        role: updatedUser.role,
+        id: targetUser.id,
+        email: targetUser.email,
+        role: targetUser.role,
       },
     };
   }
@@ -424,31 +392,37 @@ export class TeamsService {
     return this.teamMemberRepository.isTeamOwner(user.id, teamId);
   }
 
-  /**
-   * Legacy method for backward compatibility
-   * @deprecated Use isTeamOwnerOfTeam instead
-   */
   async isTeamAdminOfTeam(user: User, teamId: string): Promise<boolean> {
-    // Check TeamMember first (new way)
-    const isOwner = await this.teamMemberRepository.isTeamOwner(
-      user.id,
-      teamId,
-    );
-    if (isOwner) {
-      return true;
-    }
+    return this.teamMemberRepository.isTeamOwner(user.id, teamId);
+  }
 
-    // Fallback to old adminUserId check (for backward compatibility)
-    if (!user.teamId || user.teamId !== teamId) {
-      return false;
-    }
-
+  /**
+   * Get team members with their team roles (OWNER/MANAGER/MEMBER)
+   * Any authenticated team member can view the list
+   */
+  async getTeamMembersWithRoles(
+    requester: User,
+    teamId: string,
+  ): Promise<{ userId: string; email: string; firstName?: string; lastName?: string; teamRole: string }[]> {
     const team = await this.teamRepository.findById(teamId);
     if (!team || team.deletedAt) {
-      return false;
+      throw new NotFoundException('Team not found');
     }
 
-    return team.adminUserId === user.id;
+    const isSystemAdmin = requester.role === UserRole.ADMIN;
+    const isMember = await this.teamMemberRepository.isTeamMember(requester.id, teamId);
+    if (!isSystemAdmin && !isMember) {
+      throw new ForbiddenException('You are not a member of this team');
+    }
+
+    const memberships = await this.teamMemberRepository.findByTeamId(teamId);
+    return memberships.map((m) => ({
+      userId: m.userId,
+      email: m.user?.email ?? '',
+      firstName: m.user?.firstName,
+      lastName: m.user?.lastName,
+      teamRole: m.role,
+    }));
   }
 
   /**
@@ -461,7 +435,6 @@ export class TeamsService {
     dto.slug = team.slug;
     dto.description = team.description;
     dto.adminUserId = team.adminUserId;
-    dto.userCount = team.users?.filter((u) => !u.deletedAt).length;
     dto.createdAt = team.createdAt;
     dto.updatedAt = team.updatedAt;
     return dto;
