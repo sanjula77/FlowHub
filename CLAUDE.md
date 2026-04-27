@@ -33,9 +33,13 @@ DB_PASSWORD=flowhub
 DB_NAME=flowhub_db
 JWT_SECRET=dev-secret-change-in-production
 FRONTEND_URL=http://localhost:3000
+INITIAL_ADMIN_EMAIL=admin@example.com   # optional — auto-creates admin on first startup
+INITIAL_ADMIN_PASSWORD=secret           # required if INITIAL_ADMIN_EMAIL is set
 ```
 
 Port 5435 is intentional — there is a locally installed PostgreSQL 17 on 5432 that would intercept connections otherwise.
+
+**Admin auto-seeding:** If `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` are both set, `BootstrapService` (`src/bootstrap.service.ts`) creates the admin account on every startup via `AuthService.signup()`. If the account already exists the call is a no-op (caught silently). The signup logic assigns `ADMIN` role whenever the email matches `INITIAL_ADMIN_EMAIL`.
 
 ## Commands
 
