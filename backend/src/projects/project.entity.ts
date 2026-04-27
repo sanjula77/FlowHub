@@ -36,6 +36,9 @@ export class Project {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
+  @Column({ name: 'is_private', default: false })
+  isPrivate: boolean;
+
   // Team relationship (many-to-one: many projects, one team)
   @ManyToOne(() => Team, (team) => team.projects, {
     nullable: false,

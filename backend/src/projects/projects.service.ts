@@ -7,7 +7,10 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Project } from './project.entity';
+import { ProjectMember } from './project-member.entity';
 import { User, UserRole } from '../users/user.entity';
 import type { IProjectRepository } from './repositories/project.repository.interface';
 import type { ITeamRepository } from '../teams/repositories/team.repository.interface';
@@ -16,12 +19,6 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
 
-/**
- * Projects Service
- * Contains business logic for project operations
- * Follows Single Responsibility Principle - only business logic
- * Depends on repository interface (Dependency Inversion Principle)
- */
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -30,6 +27,8 @@ export class ProjectsService {
     @Inject('ITeamRepository') private readonly teamRepository: ITeamRepository,
     @Inject('ITeamMemberRepository')
     private readonly teamMemberRepository: ITeamMemberRepository,
+    @InjectRepository(ProjectMember)
+    private readonly projectMemberRepo: Repository<ProjectMember>,
   ) {}
 
   /**
@@ -56,43 +55,42 @@ export class ProjectsService {
       throw new NotFoundException('Team not found');
     }
 
-    // Authorization: ADMIN or TEAM_OWNER can create projects
+    // Authorization: ADMIN, OWNER, or MANAGER can create projects
     const isSystemAdmin = creator.role === UserRole.ADMIN;
-    const isTeamOwner = await this.teamMemberRepository.isTeamOwner(
+    const isPrivileged = await this.teamMemberRepository.isTeamPrivileged(
       creator.id,
       createProjectDto.teamId,
     );
 
-    if (!isSystemAdmin && !isTeamOwner) {
-      // Check if user is at least a team member (for better error message)
+    if (!isSystemAdmin && !isPrivileged) {
       const isTeamMember = await this.teamMemberRepository.isTeamMember(
         creator.id,
         createProjectDto.teamId,
       );
-      if (!isTeamMember || creator.teamId !== createProjectDto.teamId) {
+      if (!isTeamMember) {
         throw new ForbiddenException(
           'You can only create projects in teams you own or belong to',
         );
       }
       throw new ForbiddenException(
-        'Only team owners or system administrators can create projects',
+        'Only team owners, managers, or system administrators can create projects',
       );
     }
 
-    // Validate user belongs to the team (for TEAM_OWNER)
-    if (!isSystemAdmin && creator.teamId !== createProjectDto.teamId) {
-      throw new ForbiddenException(
-        'You can only create projects in your own team',
-      );
-    }
-
-    // Create project via repository
     const project = await this.projectRepository.create({
       name: createProjectDto.name,
       description: createProjectDto.description,
       teamId: createProjectDto.teamId,
       createdById: creator.id,
+      isPrivate: createProjectDto.isPrivate ?? false,
     });
+
+    // Auto-add creator as ProjectMember when project is private
+    if (project.isPrivate) {
+      await this.projectMemberRepo.save(
+        this.projectMemberRepo.create({ projectId: project.id, userId: creator.id }),
+      );
+    }
 
     return this.toResponseDto(project);
   }
@@ -113,9 +111,23 @@ export class ProjectsService {
       return this.toResponseDto(project);
     }
 
-    // If user is not ADMIN, verify project belongs to user's team
-    if (project.teamId !== user.teamId) {
+    // Verify user is a team member
+    const isMember = await this.teamMemberRepository.isTeamMember(user.id, project.teamId);
+    if (!isMember) {
       throw new NotFoundException('Project not found');
+    }
+
+    // For private projects, also verify user is an explicit ProjectMember or has elevated role
+    if (project.isPrivate) {
+      const isPrivileged = await this.teamMemberRepository.isTeamPrivileged(user.id, project.teamId);
+      if (!isPrivileged) {
+        const isProjectMember = await this.projectMemberRepo.findOne({
+          where: { projectId: project.id, userId: user.id },
+        });
+        if (!isProjectMember) {
+          throw new NotFoundException('Project not found');
+        }
+      }
     }
 
     return this.toResponseDto(project);
@@ -148,13 +160,34 @@ export class ProjectsService {
       return projects.map((project) => this.toResponseDto(project));
     }
 
-    // USER can only see projects from their team
-    if (!user.teamId) {
+    // USER can only see projects from their teams
+    const memberships = await this.teamMemberRepository.findByUserId(user.id);
+    if (!memberships.length) {
       throw new NotFoundException('User does not belong to any team');
     }
 
-    const projects = await this.projectRepository.findByTeamId(user.teamId);
-    return projects.map((project) => this.toResponseDto(project));
+    const teamIds = memberships.map((m) => m.teamId);
+    const projectArrays = await Promise.all(
+      teamIds.map((id) => this.projectRepository.findByTeamId(id)),
+    );
+    const projects = projectArrays.flat();
+
+    // Filter private projects — user must be explicit ProjectMember or have elevated team role
+    const privilegeChecks = await Promise.all(
+      memberships.map(async (m) => [m.teamId, await this.teamMemberRepository.isTeamPrivileged(user.id, m.teamId)] as const)
+    );
+    const teamPrivilegeMap = new Map(privilegeChecks);
+
+    const userProjectMemberships = await this.projectMemberRepo.find({ where: { userId: user.id } });
+    const memberProjectIds = new Set(userProjectMemberships.map((pm) => pm.projectId));
+
+    const visible = projects.filter((p) => {
+      if (!p.isPrivate) return true;
+      if (teamPrivilegeMap.get(p.teamId)) return true;
+      return memberProjectIds.has(p.id);
+    });
+
+    return visible.map((project) => this.toResponseDto(project));
   }
 
   /**
@@ -201,19 +234,14 @@ export class ProjectsService {
     // Authorization: Multiple roles can update projects
     const isSystemAdmin = updater.role === UserRole.ADMIN;
     const isProjectCreator = project.createdById === updater.id;
+    const isPrivileged = await this.teamMemberRepository.isTeamPrivileged(
+      updater.id,
+      project.teamId,
+    );
 
-    // Check if user is team owner
-    let isTeamOwner = false;
-    if (updater.teamId === project.teamId) {
-      isTeamOwner = await this.teamMemberRepository.isTeamOwner(
-        updater.id,
-        project.teamId,
-      );
-    }
-
-    if (!isSystemAdmin && !isProjectCreator && !isTeamOwner) {
+    if (!isSystemAdmin && !isProjectCreator && !isPrivileged) {
       throw new ForbiddenException(
-        'Only project creators, team owners, or system administrators can update projects',
+        'Only project creators, team owners, managers, or system administrators can update projects',
       );
     }
 
@@ -266,13 +294,10 @@ export class ProjectsService {
     const isProjectCreator = project.createdById === deleter.id;
 
     // Check if user is team owner
-    let isTeamOwner = false;
-    if (deleter.teamId === project.teamId) {
-      isTeamOwner = await this.teamMemberRepository.isTeamOwner(
-        deleter.id,
-        project.teamId,
-      );
-    }
+    const isTeamOwner = await this.teamMemberRepository.isTeamOwner(
+      deleter.id,
+      project.teamId,
+    );
 
     if (!isSystemAdmin && !isProjectCreator && !isTeamOwner) {
       throw new ForbiddenException(
@@ -302,8 +327,38 @@ export class ProjectsService {
     dto.description = project.description;
     dto.teamId = project.teamId;
     dto.createdById = project.createdById;
+    dto.isPrivate = project.isPrivate ?? false;
     dto.createdAt = project.createdAt;
     dto.updatedAt = project.updatedAt;
     return dto;
+  }
+
+  async addProjectMember(requesterId: string, projectId: string, userId: string): Promise<void> {
+    const project = await this.projectRepository.findById(projectId);
+    if (!project || project.deletedAt) throw new NotFoundException('Project not found');
+    const isPrivileged = await this.teamMemberRepository.isTeamPrivileged(requesterId, project.teamId);
+    if (!isPrivileged) throw new ForbiddenException('Only team owners and managers can manage project members');
+    const isMember = await this.teamMemberRepository.isTeamMember(userId, project.teamId);
+    if (!isMember) throw new BadRequestException('User must be a team member to be added to a project');
+    const existing = await this.projectMemberRepo.findOne({ where: { projectId, userId } });
+    if (existing) throw new ConflictException('User is already a project member');
+    await this.projectMemberRepo.save(this.projectMemberRepo.create({ projectId, userId }));
+  }
+
+  async removeProjectMember(requesterId: string, projectId: string, userId: string): Promise<void> {
+    const project = await this.projectRepository.findById(projectId);
+    if (!project || project.deletedAt) throw new NotFoundException('Project not found');
+    const isPrivileged = await this.teamMemberRepository.isTeamPrivileged(requesterId, project.teamId);
+    if (!isPrivileged) throw new ForbiddenException('Only team owners and managers can manage project members');
+    await this.projectMemberRepo.delete({ projectId, userId });
+  }
+
+  async getProjectMembers(requesterId: string, projectId: string): Promise<{ userId: string }[]> {
+    const project = await this.projectRepository.findById(projectId);
+    if (!project || project.deletedAt) throw new NotFoundException('Project not found');
+    const isMember = await this.teamMemberRepository.isTeamMember(requesterId, project.teamId);
+    if (!isMember) throw new ForbiddenException('Not a team member');
+    const members = await this.projectMemberRepo.find({ where: { projectId } });
+    return members.map((m) => ({ userId: m.userId }));
   }
 }

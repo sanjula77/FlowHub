@@ -15,6 +15,7 @@ export default function CreateProjectModal({ teamId, onClose, onSuccess }: Creat
     name: '',
     description: '',
     teamId,
+    isPrivate: false,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -98,6 +99,21 @@ export default function CreateProjectModal({ teamId, onClose, onSuccess }: Creat
             <p className="mt-1 text-xs text-gray-500">
               {formData.description?.length || 0} / 5000 characters
             </p>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.isPrivate}
+                onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Private project</span>
+                <p className="text-xs text-gray-500 mt-0.5">Only explicitly added members can see this project</p>
+              </div>
+            </label>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4">

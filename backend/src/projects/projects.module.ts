@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Project } from './project.entity';
+import { ProjectMember } from './project-member.entity';
 import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
 import { ProjectRepository } from './repositories/project.repository';
@@ -9,17 +10,16 @@ import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Project]),
-    TeamsModule, // Import TeamsModule to access ITeamRepository
-    UsersModule, // Import UsersModule to access UsersService
+    TypeOrmModule.forFeature([Project, ProjectMember]),
+    TeamsModule,
+    UsersModule,
   ],
   providers: [
     ProjectsService,
     {
-      provide: 'IProjectRepository', // Token for interface
-      useClass: ProjectRepository, // Implementation
+      provide: 'IProjectRepository',
+      useClass: ProjectRepository,
     },
-    // Also provide concrete class for direct injection if needed
     ProjectRepository,
   ],
   controllers: [ProjectsController],
