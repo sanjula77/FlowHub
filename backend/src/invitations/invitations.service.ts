@@ -79,14 +79,37 @@ export class InvitationsService {
       throw new NotFoundException('Team not found');
     }
 
-    // Prevent duplicate users: Check if user already exists
+    // Check if user already exists — if so, add them directly (no email invite needed)
     const existingUser = await this.userRepository.findByEmail(
       createInvitationDto.email,
     );
     if (existingUser) {
-      throw new ConflictException(
-        'User with this email already exists. Please use a different email or ask them to sign in.',
+      if (existingUser.deletedAt) {
+        throw new BadRequestException('Cannot invite an inactive user account');
+      }
+      const alreadyMember = await this.teamMemberRepository.findByUserAndTeam(
+        existingUser.id,
+        createInvitationDto.teamId,
       );
+      if (alreadyMember) {
+        throw new ConflictException('This user is already a member of the team');
+      }
+      await this.teamMemberRepository.create({
+        userId: existingUser.id,
+        teamId: createInvitationDto.teamId,
+        role: TeamMemberRole.MEMBER,
+      });
+      return {
+        id: '',
+        email: existingUser.email,
+        teamId: createInvitationDto.teamId,
+        role: existingUser.role,
+        token: '',
+        expiresAt: new Date(),
+        usedAt: null,
+        createdAt: new Date(),
+        existingUserAdded: true,
+      } as any;
     }
 
     // Prevent duplicate invitations: Check for active invitation
@@ -172,10 +195,16 @@ export class InvitationsService {
     const user = await this.userRepository.create({
       email: invitation.email,
       password: hashedPassword,
-      teamId: invitation.teamId,
       role: invitation.role,
       firstName: acceptInvitationDto.firstName,
       lastName: acceptInvitationDto.lastName,
+    });
+
+    // Create TeamMember record for the invited team
+    await this.teamMemberRepository.create({
+      userId: user.id,
+      teamId: invitation.teamId,
+      role: TeamMemberRole.MEMBER,
     });
 
     // Mark invitation as used
@@ -190,7 +219,6 @@ export class InvitationsService {
         id: user.id,
         email: user.email,
         role: user.role,
-        teamId: user.teamId,
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
@@ -263,29 +291,11 @@ export class InvitationsService {
    * @deprecated Use TeamsService.isTeamOwnerOfTeam instead
    */
   private async isTeamAdmin(user: User, teamId: string): Promise<boolean> {
-    // This method is kept for backward compatibility
-    // New code should use TeamsService.isTeamOwnerOfTeam
-    // which checks TeamMember table
-    if (!user.teamId || user.teamId !== teamId) {
-      return false;
-    }
-
-    // Try TeamMember first (new way)
     const member = await this.teamMemberRepository.findByUserAndTeam(
       user.id,
       teamId,
     );
-    if (member && member.role === TeamMemberRole.OWNER) {
-      return true;
-    }
-
-    // Fallback to old adminUserId check (for backward compatibility)
-    const team = await this.teamRepository.findById(teamId);
-    if (!team || team.deletedAt) {
-      return false;
-    }
-
-    return team.adminUserId === user.id;
+    return member?.role === TeamMemberRole.OWNER;
   }
 
   /**
