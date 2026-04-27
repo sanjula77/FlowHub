@@ -471,6 +471,22 @@ export async function getAllUsers() {
   return res.json();
 }
 
+export async function updateMyProfile(data: {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}) {
+  const res = await fetchWithAuth(`${API_URL}/users/me`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || 'Failed to update profile');
+  }
+  return res.json();
+}
+
 export async function updateUserRole(userId: string, role: 'USER' | 'ADMIN') {
   const res = await fetchWithAuth(`${API_URL}/users/${userId}`, {
     method: 'PUT',
