@@ -1,0 +1,18 @@
+schemaVersion: 1.1
+
+# ── FlowHub Backend (NestJS) ──────────────────────────────────────────────────
+# Choreo reads this file to understand how to expose the service.
+# Place this file at: backend/.choreo/component.yaml
+# Set Docker Context Path to: backend/
+# Set Dockerfile Path to:     backend/Dockerfile
+
+endpoints:
+  - name: flowhub-api
+    # Must match the port your NestJS app listens on (process.env.PORT ?? 3001)
+    port: 3001
+    type: REST
+    # Project visibility allows the frontend component (same Choreo project)
+    # to call this API via its internal URL without going through the public internet.
+    networkVisibilities:
+      - Project
+    context: /
