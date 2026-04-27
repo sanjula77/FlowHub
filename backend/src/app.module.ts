@@ -14,9 +14,17 @@ import { Team } from './teams/team.entity';
 import { TeamMember } from './teams/team-member.entity';
 import { Invitation } from './invitations/invitation.entity';
 import { Project } from './projects/project.entity';
+import { ProjectMember } from './projects/project-member.entity';
 import { Task } from './tasks/task.entity';
 import { AuditLog } from './audit/audit-log.entity';
 import { AuditModule } from './audit/audit.module';
+import { CommentsModule } from './comments/comments.module';
+import { Comment } from './comments/comment.entity';
+import { LabelsModule } from './labels/labels.module';
+import { AdminModule } from './admin/admin.module';
+import { Label } from './labels/label.entity';
+import { TaskLabel } from './labels/task-label.entity';
+import { BootstrapService } from './bootstrap.service';
 
 @Module({
   imports: [
@@ -28,8 +36,8 @@ import { AuditModule } from './audit/audit.module';
       username: process.env.DB_USER || 'flowhub',
       password: process.env.DB_PASSWORD || 'flowhub',
       database: process.env.DB_NAME || 'flowhub_db',
-      entities: [User, Team, TeamMember, Invitation, Project, Task, AuditLog],
-      synchronize: true, // Set to false in production
+      entities: [User, Team, TeamMember, Invitation, Project, ProjectMember, Task, AuditLog, Comment, Label, TaskLabel],
+      synchronize: true,
     }),
     AuthModule,
     UsersModule,
@@ -38,8 +46,11 @@ import { AuditModule } from './audit/audit.module';
     ProjectsModule,
     TasksModule,
     AuditModule,
+    CommentsModule,
+    LabelsModule,
+    AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, BootstrapService],
 })
 export class AppModule {}

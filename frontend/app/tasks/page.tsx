@@ -3,7 +3,8 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getMyProfile, getProjects, getTasks, updateTaskStatus, deleteTask } from '@/lib/api';
-import TaskList from '@/components/tasks/TaskList';
+import KanbanBoard from '@/components/tasks/KanbanBoard';
+import TaskDetailModal from '@/components/tasks/TaskDetailModal';
 import CreateTaskModal from '@/components/tasks/CreateTaskModal';
 import AssignTaskModal from '@/components/tasks/AssignTaskModal';
 import MainLayout from '@/components/layout/MainLayout';
@@ -26,11 +27,11 @@ function TasksDashboardContent() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectIdParam);
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,19 +42,15 @@ function TasksDashboardContent() {
     if (!loading) {
       loadTasks();
     }
-  }, [selectedProjectId, selectedStatus]);
+  }, [selectedProjectId]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError('');
-
-      const userData = await getMyProfile();
+      const [userData, projectsData] = await Promise.all([getMyProfile(), getProjects()]);
       setCurrentUser(userData);
-
-      const projectsData = await getProjects();
       setProjects(projectsData);
-
       await loadTasks();
     } catch (err: any) {
       if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
@@ -68,7 +65,7 @@ function TasksDashboardContent() {
 
   const loadTasks = async () => {
     try {
-      const tasksData = await getTasks(selectedProjectId || undefined, selectedStatus || undefined);
+      const tasksData = await getTasks(selectedProjectId || undefined);
       setTasks(tasksData);
     } catch (err: any) {
       setError(err.message || 'Failed to load tasks');
@@ -76,26 +73,24 @@ function TasksDashboardContent() {
   };
 
   const handleCreateTask = (newTask: Task) => {
-    setTasks([newTask, ...tasks]);
+    setTasks((prev) => [newTask, ...prev]);
     setShowCreateModal(false);
   };
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
+    // Optimistic update
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus } : t));
     try {
       await updateTaskStatus(taskId, newStatus);
-      await loadTasks();
     } catch (err: any) {
       setError(err.message || 'Failed to update task status');
+      await loadTasks();
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    try {
-      await deleteTask(taskId);
-      setTasks(tasks.filter((t) => t.id !== taskId));
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete task');
-    }
+  const handleTaskUpdated = (updated: Task) => {
+    setTasks((prev) => prev.map((t) => t.id === updated.id ? updated : t));
+    setSelectedTask(updated);
   };
 
   const handleAssignSuccess = async () => {
@@ -105,18 +100,13 @@ function TasksDashboardContent() {
 
   const getUserDisplayName = (user: User | null): string => {
     if (!user) return 'User';
-    if (user.firstName && user.lastName) {
-      return `${user.firstName} ${user.lastName}`;
-    }
-    if (user.firstName) {
-      return user.firstName;
-    }
+    if (user.firstName && user.lastName) return `${user.firstName} ${user.lastName}`;
+    if (user.firstName) return user.firstName;
     return user.email.split('@')[0];
   };
 
   const isAdmin = currentUser?.role === 'ADMIN';
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
-  const isProjectCreator = selectedProject?.createdById === currentUser?.id;
 
   if (loading) {
     return (
@@ -142,16 +132,13 @@ function TasksDashboardContent() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
             <p className="mt-1 text-sm text-gray-500">
-              {isAdmin
-                ? 'Manage all tasks across projects'
-                : 'View and manage tasks in your team'}
+              {isAdmin ? 'Manage all tasks across projects' : 'View and manage tasks in your team'}
             </p>
           </div>
           <Button
             variant="primary"
             onClick={() => {
               if (!selectedProjectId && projects.length > 0) {
-                // If no project selected but projects exist, show message
                 setError('Please select a project first to create a task');
               } else if (projects.length === 0) {
                 setError('No projects available. Please create a project first.');
@@ -166,15 +153,14 @@ function TasksDashboardContent() {
           </Button>
         </div>
 
-        {/* Filters */}
+        {/* Project filter */}
         <Card>
           <CardHeader
-            title="Filters"
-            subtitle="Filter tasks by project and status"
+            title="Filter by Project"
             action={<Filter className="w-5 h-5 text-gray-400" />}
           />
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="max-w-xs">
               <Select
                 label="Project"
                 value={selectedProjectId || ''}
@@ -192,40 +178,22 @@ function TasksDashboardContent() {
                   ...projects.map((p) => ({ value: p.id, label: p.name })),
                 ]}
               />
-
-              <Select
-                label="Status"
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                options={[
-                  { value: '', label: 'All Statuses' },
-                  { value: TaskStatus.TODO, label: 'To Do' },
-                  { value: TaskStatus.IN_PROGRESS, label: 'In Progress' },
-                  { value: TaskStatus.DONE, label: 'Done' },
-                ]}
-              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Error Message */}
         {error && (
           <Alert variant="error" onClose={() => setError('')}>
             {error}
           </Alert>
         )}
 
-        {/* Tasks List */}
+        {/* Kanban board */}
         {tasks.length > 0 ? (
-          <TaskList
+          <KanbanBoard
             tasks={tasks}
-            currentUser={currentUser}
-            isAdmin={isAdmin}
-            isProjectCreator={isProjectCreator}
             onStatusChange={handleStatusChange}
-            onDelete={isAdmin || isProjectCreator ? handleDeleteTask : undefined}
-            onAssign={isAdmin || isProjectCreator ? (taskId) => setAssigningTaskId(taskId) : undefined}
-            loading={false}
+            onTaskClick={(task) => setSelectedTask(task)}
           />
         ) : (
           <Card>
@@ -252,6 +220,16 @@ function TasksDashboardContent() {
               />
             </CardContent>
           </Card>
+        )}
+
+        {/* Task detail modal */}
+        {selectedTask && currentUser && (
+          <TaskDetailModal
+            task={selectedTask}
+            currentUser={currentUser}
+            onClose={() => setSelectedTask(null)}
+            onTaskUpdated={handleTaskUpdated}
+          />
         )}
 
         {/* Create Task Modal */}
