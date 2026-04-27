@@ -175,7 +175,6 @@ describe('AuthService', () => {
         id: 'user-1',
         email: createUserDto.email,
         password: '$2b$10$hashed',
-        teamId: mockTeam.id,
         role: UserRole.ADMIN,
         firstName: createUserDto.firstName,
         lastName: createUserDto.lastName,
@@ -192,7 +191,6 @@ describe('AuthService', () => {
       expect(mockTeamMemberRepository.create).toHaveBeenCalledWith(
         {
           userId: mockUser.id,
-          teamId: mockTeam.id,
           role: TeamMemberRole.OWNER,
         },
         mockQueryRunner.manager,
@@ -221,7 +219,6 @@ describe('AuthService', () => {
         id: 'user-2',
         email: createUserDto.email,
         password: '$2b$10$hashed',
-        teamId: mockTeam.id,
         role: UserRole.USER,
         firstName: createUserDto.firstName,
         lastName: createUserDto.lastName,
@@ -269,7 +266,6 @@ describe('AuthService', () => {
         id: 'user-1',
         email: createUserDto.email,
         password: '$2b$10$hashed',
-        teamId: mockTeam.id,
         role: UserRole.ADMIN,
         firstName: createUserDto.firstName,
         lastName: createUserDto.lastName,
@@ -289,7 +285,6 @@ describe('AuthService', () => {
     it('should use provided teamId if given', async () => {
       const dtoWithTeam: CreateUserDto = {
         ...createUserDto,
-        teamId: 'existing-team-id',
       };
 
       mockUserRepository.emailExists.mockResolvedValue(false);
@@ -303,7 +298,6 @@ describe('AuthService', () => {
         id: 'user-1',
         email: dtoWithTeam.email,
         password: '$2b$10$hashed',
-        teamId: dtoWithTeam.teamId!,
         role: UserRole.USER,
         firstName: dtoWithTeam.firstName,
         lastName: dtoWithTeam.lastName,
@@ -351,7 +345,6 @@ describe('AuthService', () => {
         id: 'user-1',
         email,
         password: '$2b$10$hashed',
-        teamId: 'team-1',
         role: UserRole.USER,
         firstName: 'John',
         lastName: 'Doe',
@@ -389,7 +382,6 @@ describe('AuthService', () => {
         id: 'user-1',
         email: 'test@example.com',
         password: '$2b$10$hashed',
-        teamId: 'team-1',
         role: UserRole.USER,
         firstName: 'John',
         lastName: 'Doe',
@@ -417,7 +409,6 @@ describe('AuthService', () => {
         id: 'user-1',
         email: 'test@example.com',
         password: 'hashed',
-        teamId: 'team-1',
         role: UserRole.USER,
         firstName: 'John',
         lastName: 'Doe',
@@ -447,7 +438,6 @@ describe('AuthService', () => {
         id: 'user-1',
         email: 'test@example.com',
         password: 'hashed',
-        teamId: 'team-1',
         role: UserRole.USER,
         firstName: 'John',
         lastName: 'Doe',
@@ -499,7 +489,6 @@ describe('AuthService', () => {
         id: 'user-1',
         email: 'test@example.com',
         password: 'hashed',
-        teamId: 'team-1',
         role: UserRole.USER,
         firstName: 'John',
         lastName: 'Doe',

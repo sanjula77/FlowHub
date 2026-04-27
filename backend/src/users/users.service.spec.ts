@@ -51,7 +51,6 @@ describe('UsersService', () => {
     const createUserDto: CreateUserDto = {
       email: 'test@example.com',
       password: 'hashedPassword',
-      teamId: 'team-1',
       firstName: 'John',
       lastName: 'Doe',
     };
@@ -89,7 +88,6 @@ describe('UsersService', () => {
     it('should throw error if teamId is missing', async () => {
       const dtoWithoutTeam: CreateUserDto = {
         ...createUserDto,
-        teamId: undefined,
       };
 
       mockUserRepository.emailExists.mockResolvedValue(false);
@@ -129,7 +127,6 @@ describe('UsersService', () => {
       id: 'admin-1',
       email: 'admin@example.com',
       password: 'hashed',
-      teamId: 'team-1',
       role: UserRole.ADMIN,
       firstName: 'Admin',
       lastName: 'User',
@@ -143,7 +140,6 @@ describe('UsersService', () => {
       id: 'user-1',
       email: 'user@example.com',
       password: 'hashed',
-      teamId: 'team-1',
       role: UserRole.USER,
       firstName: 'Regular',
       lastName: 'User',
@@ -253,7 +249,6 @@ describe('UsersService', () => {
         id: 'user-1',
         email: 'test@example.com',
         password: 'hashed',
-        teamId: 'team-1',
         role: UserRole.USER,
         firstName: 'John',
         lastName: 'Doe',
@@ -286,7 +281,6 @@ describe('UsersService', () => {
         id: 'user-1',
         email: 'test@example.com',
         password: 'hashed',
-        teamId: 'team-1',
         role: UserRole.USER,
         firstName: 'John',
         lastName: 'Doe',
@@ -318,7 +312,6 @@ describe('UsersService', () => {
         id: 'user-1',
         email: 'test@example.com',
         password: 'hashed',
-        teamId: 'team-1',
         role: UserRole.USER,
         firstName: 'John',
         lastName: 'Doe',
@@ -352,7 +345,6 @@ describe('UsersService', () => {
           id: 'user-1',
           email: 'user1@example.com',
           password: 'hashed',
-          teamId: 'team-1',
           role: UserRole.USER,
           firstName: 'John',
           lastName: 'Doe',
@@ -365,7 +357,6 @@ describe('UsersService', () => {
           id: 'user-2',
           email: 'user2@example.com',
           password: 'hashed',
-          teamId: 'team-1',
           role: UserRole.USER,
           firstName: 'Jane',
           lastName: 'Smith',
@@ -403,7 +394,6 @@ describe('UsersService', () => {
           id: 'user-1',
           email: 'user1@example.com',
           password: 'hashed',
-          teamId: 'team-1',
           role: UserRole.USER,
           firstName: 'John',
           lastName: 'Doe',
@@ -416,7 +406,6 @@ describe('UsersService', () => {
           id: 'user-2',
           email: 'user2@example.com',
           password: 'hashed',
-          teamId: 'team-2',
           role: UserRole.ADMIN,
           firstName: 'Jane',
           lastName: 'Smith',

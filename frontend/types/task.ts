@@ -17,6 +17,7 @@ export interface Task {
   version: number;
   createdAt: string;
   updatedAt: string;
+  labels?: { id: string; name: string; color: string }[];
 }
 
 export interface CreateTaskDto {

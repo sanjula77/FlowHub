@@ -14,6 +14,7 @@ import type { IProjectRepository } from '../projects/repositories/project.reposi
 import type { ITeamRepository } from '../teams/repositories/team.repository.interface';
 import type { IUserRepository } from '../users/repositories/user.repository.interface';
 import type { ITeamMemberRepository } from '../teams/repositories/team-member.repository.interface';
+import { LabelRepository } from '../labels/repositories/label.repository';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { AssignTaskDto } from './dto/assign-task.dto';
@@ -35,6 +36,7 @@ export class TasksService {
     @Inject('IUserRepository') private readonly userRepository: IUserRepository,
     @Inject('ITeamMemberRepository')
     private readonly teamMemberRepository: ITeamMemberRepository,
+    private readonly labelRepository: LabelRepository,
   ) {}
 
   /**
@@ -44,7 +46,7 @@ export class TasksService {
     userId: string,
     teamId: string,
   ): Promise<boolean> {
-    return this.teamMemberRepository.isTeamOwner(userId, teamId);
+    return this.teamMemberRepository.isTeamPrivileged(userId, teamId);
   }
 
   /**
@@ -74,24 +76,14 @@ export class TasksService {
     // Authorization: Enterprise-grade permissions
     const isSystemAdmin = user.role === UserRole.ADMIN;
     const isProjectCreator = project.createdById === user.id;
-    const isTeamMember = project.teamId === user.teamId;
-
-    // Check if user is team owner
-    let isTeamOwner = false;
-    if (isTeamMember) {
-      isTeamOwner = await this.checkTeamOwnership(user.id, project.teamId);
-    }
+    const isTeamMember = await this.teamMemberRepository.isTeamMember(user.id, project.teamId);
+    const isTeamOwner = isTeamMember
+      ? await this.checkTeamOwnership(user.id, project.teamId)
+      : false;
 
     if (!isSystemAdmin && !isProjectCreator && !isTeamMember) {
       throw new ForbiddenException(
         'You can only create tasks in projects from your team',
-      );
-    }
-
-    // Additional validation: Regular users need explicit team membership
-    if (!isSystemAdmin && !isProjectCreator && !isTeamOwner && !isTeamMember) {
-      throw new ForbiddenException(
-        'You must be a member of the team to create tasks',
       );
     }
 
@@ -112,7 +104,8 @@ export class TasksService {
       if (!assignedUser || assignedUser.deletedAt) {
         throw new NotFoundException('Assigned user not found');
       }
-      if (assignedUser.teamId !== teamId) {
+      const assignedUserIsMember = await this.teamMemberRepository.isTeamMember(assignedUser.id, teamId);
+      if (!assignedUserIsMember) {
         throw new BadRequestException(
           'Assigned user must belong to the same team as the project',
         );
@@ -139,7 +132,6 @@ export class TasksService {
       // Just log a warning in production
     }
 
-    // Create task via repository (teamId derived from project)
     const task = await this.taskRepository.create({
       title: createTaskDto.title.trim(),
       description: createTaskDto.description?.trim(),
@@ -151,7 +143,7 @@ export class TasksService {
       dueDate: dueDate,
     });
 
-    return this.toResponseDto(task);
+    return this.withLabel(task);
   }
 
   /**
@@ -183,29 +175,21 @@ export class TasksService {
       throw new NotFoundException('Project not found');
     }
 
-    // Authorization: Enterprise-grade permissions (ADMIN, project creator, or team owner)
+    // Authorization: ADMIN, project creator, team owner, or team manager can assign tasks
     const isSystemAdmin = user.role === UserRole.ADMIN;
     const isProjectCreator = project.createdById === user.id;
+    const isPrivileged = await this.checkTeamOwnership(user.id, task.teamId);
 
-    // Check if user is team owner
-    let isTeamOwner = false;
-    if (user.teamId === task.teamId) {
-      isTeamOwner = await this.checkTeamOwnership(user.id, task.teamId);
-    }
-
-    if (!isSystemAdmin && !isProjectCreator && !isTeamOwner) {
+    if (!isSystemAdmin && !isProjectCreator && !isPrivileged) {
       throw new ForbiddenException(
-        'Only project creators, team owners, or system administrators can assign tasks',
+        'Only project creators, team owners, managers, or system administrators can assign tasks',
       );
     }
 
-    // Allow assigning completed tasks (enterprise feature - can reassign for review/rework)
-    // Allow unassigning tasks (assignedToId can be null)
     if (
       assignTaskDto.assignedToId !== null &&
       assignTaskDto.assignedToId !== undefined
     ) {
-      // Validate assigned user exists
       const assignedUser = await this.userRepository.findById(
         assignTaskDto.assignedToId,
       );
@@ -213,8 +197,8 @@ export class TasksService {
         throw new NotFoundException('Assigned user not found');
       }
 
-      // Validate assigned user belongs to the same team
-      if (assignedUser.teamId !== task.teamId) {
+      const assignedIsMember = await this.teamMemberRepository.isTeamMember(assignedUser.id, task.teamId);
+      if (!assignedIsMember) {
         throw new BadRequestException(
           'Assigned user must belong to the same team as the task',
         );
@@ -238,7 +222,7 @@ export class TasksService {
       if (!reloadedTask) {
         throw new NotFoundException('Task not found after update');
       }
-      return this.toResponseDto(reloadedTask);
+      return this.withLabel(reloadedTask);
     } catch (error: any) {
       // Handle optimistic locking conflicts
       // TypeORM throws OptimisticLockVersionMismatchError when version mismatch occurs
@@ -288,13 +272,8 @@ export class TasksService {
     const isAssignee = task.assignedToId === user.id;
     const isProjectCreator = project.createdById === user.id;
 
-    // Check if user is team owner (using TeamMember)
-    let isTeamOwner = false;
-    if (user.teamId === task.teamId) {
-      // Inject TeamsService or use repository directly
-      // For now, we'll check via team membership
-      isTeamOwner = await this.checkTeamOwnership(user.id, task.teamId);
-    }
+    // Check if user is team owner
+    const isTeamOwner = await this.checkTeamOwnership(user.id, task.teamId);
 
     if (!isSystemAdmin && !isAssignee && !isProjectCreator && !isTeamOwner) {
       throw new ForbiddenException(
@@ -318,10 +297,9 @@ export class TasksService {
       );
     }
 
-    // Update task status
     try {
       const updatedTask = await this.taskRepository.update(taskId, { status });
-      return this.toResponseDto(updatedTask);
+      return this.withLabel(updatedTask);
     } catch (error: any) {
       // Handle optimistic locking conflicts
       // TypeORM throws OptimisticLockVersionMismatchError when version mismatch occurs
@@ -348,12 +326,15 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    // Authorization: USER can only see tasks from their team
-    if (user.role !== UserRole.ADMIN && task.teamId !== user.teamId) {
-      throw new NotFoundException('Task not found'); // Return 404 to prevent data leakage
+    // Authorization: USER can only see tasks from their teams
+    if (user.role !== UserRole.ADMIN) {
+      const isMember = await this.teamMemberRepository.isTeamMember(user.id, task.teamId);
+      if (!isMember) {
+        throw new NotFoundException('Task not found');
+      }
     }
 
-    return this.toResponseDto(task);
+    return this.withLabel(task);
   }
 
   /**
@@ -380,11 +361,14 @@ export class TasksService {
         throw new NotFoundException('Project not found');
       }
 
-      // Authorization: USER can only see projects from their team
-      if (user.role !== UserRole.ADMIN && project.teamId !== user.teamId) {
-        throw new ForbiddenException(
-          'You can only view tasks from projects in your team',
-        );
+      // Authorization: USER can only see projects from their teams
+      if (user.role !== UserRole.ADMIN) {
+        const isMember = await this.teamMemberRepository.isTeamMember(user.id, project.teamId);
+        if (!isMember) {
+          throw new ForbiddenException(
+            'You can only view tasks from projects in your team',
+          );
+        }
       }
 
       if (status) {
@@ -398,23 +382,29 @@ export class TasksService {
     } else {
       // Get all tasks (role-based)
       if (user.role === UserRole.ADMIN) {
-        // ADMIN sees all tasks
         tasks = status
           ? await this.taskRepository.findByStatus(status)
           : await this.taskRepository.findAll();
       } else {
-        // USER sees only tasks from their team
-        if (!user.teamId) {
+        // USER sees only tasks from their teams
+        const memberships = await this.teamMemberRepository.findByUserId(user.id);
+        if (!memberships.length) {
           throw new NotFoundException('User does not belong to any team');
         }
 
-        tasks = status
-          ? await this.taskRepository.findByTeamIdAndStatus(user.teamId, status)
-          : await this.taskRepository.findByTeamId(user.teamId);
+        const teamIds = memberships.map((m) => m.teamId);
+        const taskArrays = await Promise.all(
+          teamIds.map((id) =>
+            status
+              ? this.taskRepository.findByTeamIdAndStatus(id, status)
+              : this.taskRepository.findByTeamId(id),
+          ),
+        );
+        tasks = taskArrays.flat();
       }
     }
 
-    return tasks.map((task) => this.toResponseDto(task));
+    return this.withLabels(tasks);
   }
 
   /**
@@ -430,15 +420,18 @@ export class TasksService {
       throw new NotFoundException('Project not found');
     }
 
-    // Authorization: USER can only see projects from their team
-    if (user.role !== UserRole.ADMIN && project.teamId !== user.teamId) {
-      throw new ForbiddenException(
-        'You can only view tasks from projects in your team',
-      );
+    // Authorization: USER can only see projects from their teams
+    if (user.role !== UserRole.ADMIN) {
+      const isMember = await this.teamMemberRepository.isTeamMember(user.id, project.teamId);
+      if (!isMember) {
+        throw new ForbiddenException(
+          'You can only view tasks from projects in your team',
+        );
+      }
     }
 
     const tasks = await this.taskRepository.findByProjectId(projectId);
-    return tasks.map((task) => this.toResponseDto(task));
+    return this.withLabels(tasks);
   }
 
   /**
@@ -451,7 +444,7 @@ export class TasksService {
     // ADMIN can see any user's tasks
     if (user.role === UserRole.ADMIN) {
       const tasks = await this.taskRepository.findByAssignedToId(assignedToId);
-      return tasks.map((task) => this.toResponseDto(task));
+      return this.withLabels(tasks);
     }
 
     // USER can only see their own tasks
@@ -460,7 +453,7 @@ export class TasksService {
     }
 
     const tasks = await this.taskRepository.findByAssignedToId(assignedToId);
-    return tasks.map((task) => this.toResponseDto(task));
+    return this.withLabels(tasks);
   }
 
   /**
@@ -492,10 +485,7 @@ export class TasksService {
     const isAssignee = task.assignedToId === user.id;
 
     // Check if user is team owner
-    let isTeamOwner = false;
-    if (user.teamId === task.teamId) {
-      isTeamOwner = await this.checkTeamOwnership(user.id, task.teamId);
-    }
+    const isTeamOwner = await this.checkTeamOwnership(user.id, task.teamId);
 
     // Multiple roles can update tasks (enterprise-grade)
     if (!isSystemAdmin && !isProjectCreator && !isAssignee && !isTeamOwner) {
@@ -540,7 +530,8 @@ export class TasksService {
       if (!assignedUser || assignedUser.deletedAt) {
         throw new NotFoundException('Assigned user not found');
       }
-      if (assignedUser.teamId !== task.teamId) {
+      const assignedIsMember = await this.teamMemberRepository.isTeamMember(assignedUser.id, task.teamId);
+      if (!assignedIsMember) {
         throw new BadRequestException(
           'Assigned user must belong to the same team as the task',
         );
@@ -555,7 +546,7 @@ export class TasksService {
     if (updateTaskDto.status !== undefined)
       updates.status = updateTaskDto.status;
     if (updateTaskDto.assignedToId !== undefined) {
-      updates.assignedToId = updateTaskDto.assignedToId || undefined; // Convert null to undefined
+      (updates as any).assignedToId = updateTaskDto.assignedToId; // null = unassign, string = assign
     }
     if (updateTaskDto.priority !== undefined)
       updates.priority = updateTaskDto.priority;
@@ -567,9 +558,8 @@ export class TasksService {
 
     try {
       const updatedTask = await this.taskRepository.update(id, updates);
-      return this.toResponseDto(updatedTask);
+      return this.withLabel(updatedTask);
     } catch (error: any) {
-      // Handle optimistic locking conflicts
       // TypeORM throws OptimisticLockVersionMismatchError when version mismatch occurs
       if (
         error?.name === 'OptimisticLockVersionMismatchError' ||
@@ -611,10 +601,7 @@ export class TasksService {
     const isAssignee = task.assignedToId === user.id;
 
     // Check if user is team owner
-    let isTeamOwner = false;
-    if (user.teamId === task.teamId) {
-      isTeamOwner = await this.checkTeamOwnership(user.id, task.teamId);
-    }
+    const isTeamOwner = await this.checkTeamOwnership(user.id, task.teamId);
 
     if (!isSystemAdmin && !isProjectCreator && !isAssignee && !isTeamOwner) {
       throw new ForbiddenException(
@@ -627,10 +614,10 @@ export class TasksService {
     await this.taskRepository.softDelete(id);
   }
 
-  /**
-   * Convert Task entity to TaskResponseDto
-   */
-  private toResponseDto(task: Task): TaskResponseDto {
+  private toResponseDto(
+    task: Task,
+    labels: { id: string; name: string; color: string }[] = [],
+  ): TaskResponseDto {
     return {
       id: task.id,
       title: task.title,
@@ -644,6 +631,29 @@ export class TasksService {
       version: task.version,
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
+      labels,
     };
+  }
+
+  private async withLabels(tasks: Task[]): Promise<TaskResponseDto[]> {
+    if (!tasks.length) return [];
+    const labelsMap = await this.labelRepository.findLabelsByTaskIds(
+      tasks.map((t) => t.id),
+    );
+    return tasks.map((t) =>
+      this.toResponseDto(
+        t,
+        (labelsMap.get(t.id) ?? []).map((l) => ({
+          id: l.id,
+          name: l.name,
+          color: l.color,
+        })),
+      ),
+    );
+  }
+
+  private async withLabel(task: Task): Promise<TaskResponseDto> {
+    const results = await this.withLabels([task]);
+    return results[0];
   }
 }

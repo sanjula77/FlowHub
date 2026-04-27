@@ -4,11 +4,6 @@ import { Repository, IsNull, EntityManager } from 'typeorm';
 import { User, UserRole } from '../user.entity';
 import { IUserRepository } from './user.repository.interface';
 
-/**
- * User Repository Implementation
- * Implements IUserRepository using TypeORM
- * Follows Single Responsibility Principle - only handles data access
- */
 @Injectable()
 export class UserRepository implements IUserRepository {
   constructor(
@@ -20,7 +15,6 @@ export class UserRepository implements IUserRepository {
     userData: {
       email: string;
       password: string;
-      teamId: string;
       role?: UserRole;
       firstName?: string;
       lastName?: string;
@@ -34,7 +28,6 @@ export class UserRepository implements IUserRepository {
     const user = repository.create({
       email: userData.email,
       password: userData.password,
-      teamId: userData.teamId,
       role: userData.role || UserRole.USER,
       firstName: userData.firstName,
       lastName: userData.lastName,
@@ -46,28 +39,26 @@ export class UserRepository implements IUserRepository {
   async findById(id: string): Promise<User | null> {
     return this.typeOrmRepository.findOne({
       where: { id, deletedAt: IsNull() },
-      relations: ['team'],
     });
   }
 
   async findByEmail(email: string): Promise<User | null> {
     return this.typeOrmRepository.findOne({
       where: { email, deletedAt: IsNull() },
-      relations: ['team'],
     });
   }
 
   async findByTeamId(teamId: string): Promise<User[]> {
-    return this.typeOrmRepository.find({
-      where: { teamId, deletedAt: IsNull() },
-      relations: ['team'],
-    });
+    return this.typeOrmRepository
+      .createQueryBuilder('user')
+      .innerJoin('team_members', 'tm', 'tm.user_id = user.id AND tm.team_id = :teamId', { teamId })
+      .where('user.deleted_at IS NULL')
+      .getMany();
   }
 
   async findAll(): Promise<User[]> {
     return this.typeOrmRepository.find({
       where: { deletedAt: IsNull() },
-      relations: ['team'],
     });
   }
 

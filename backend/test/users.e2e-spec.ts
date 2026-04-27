@@ -51,8 +51,7 @@ describe('Users E2E Tests', () => {
     const adminPassword = await bcrypt.hash('admin123', 10);
     adminUser = userRepository.create({
       email: 'admin@test.com',
-      password: adminPassword,
-      teamId: testTeam.id,
+      password: adminPassword,
       role: UserRole.ADMIN,
     });
     adminUser = await userRepository.save(adminUser);
@@ -61,8 +60,7 @@ describe('Users E2E Tests', () => {
     const userPassword = await bcrypt.hash('user123', 10);
     regularUser = userRepository.create({
       email: 'user@test.com',
-      password: userPassword,
-      teamId: testTeam.id,
+      password: userPassword,
       role: UserRole.USER,
     });
     regularUser = await userRepository.save(regularUser);
@@ -132,8 +130,7 @@ describe('Users E2E Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           email: 'newuser@test.com',
-          password: 'password123',
-          teamId: testTeam.id,
+          password: 'password123',
           role: UserRole.USER,
         })
         .expect(201)
@@ -150,8 +147,7 @@ describe('Users E2E Tests', () => {
         .set('Authorization', `Bearer ${userToken}`)
         .send({
           email: 'newuser2@test.com',
-          password: 'password123',
-          teamId: testTeam.id,
+          password: 'password123',
         })
         .expect(403);
     });
@@ -162,8 +158,7 @@ describe('Users E2E Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           email: 'admin@test.com', // Already exists
-          password: 'password123',
-          teamId: testTeam.id,
+          password: 'password123',
         })
         .expect(409);
     });
@@ -174,8 +169,7 @@ describe('Users E2E Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           email: 'invalid-email',
-          password: 'password123',
-          teamId: testTeam.id,
+          password: 'password123',
         })
         .expect(400);
     });
@@ -239,8 +233,7 @@ describe('Users E2E Tests', () => {
       // Create a user to delete
       const userToDelete = userRepository.create({
         email: 'todelete@test.com',
-        password: await bcrypt.hash('password123', 10),
-        teamId: testTeam.id,
+        password: await bcrypt.hash('password123', 10),
         role: UserRole.USER,
       });
       const savedUser = await userRepository.save(userToDelete);

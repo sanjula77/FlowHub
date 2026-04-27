@@ -2,14 +2,11 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
-  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
   Index,
   OneToMany,
 } from 'typeorm';
-import { Team } from '../teams/team.entity';
 import { Task } from '../tasks/task.entity';
 
 export enum UserRole {
@@ -18,10 +15,8 @@ export enum UserRole {
 }
 
 @Entity('users')
-@Index(['email'], { where: '"deleted_at" IS NULL' }) // Partial index for active users
-@Index(['teamId'], { where: '"deleted_at" IS NULL' }) // Partial index for team queries
-@Index(['role'], { where: '"deleted_at" IS NULL' }) // Partial index for role queries
-@Index(['teamId', 'role'], { where: '"deleted_at" IS NULL' }) // Composite index
+@Index(['email'], { where: '"deleted_at" IS NULL' })
+@Index(['role'], { where: '"deleted_at" IS NULL' })
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -30,18 +25,7 @@ export class User {
   email: string;
 
   @Column({ type: 'varchar', length: 255 })
-  password: string; // Bcrypt hashed
-
-  // Team relationship (many-to-one: many users, one team)
-  @ManyToOne(() => Team, (team) => team.users, {
-    nullable: false,
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'team_id' })
-  team: Team;
-
-  @Column({ name: 'team_id' })
-  teamId: string;
+  password: string;
 
   // One-to-Many: One user can be assigned to many tasks
   @OneToMany(() => Task, (task) => task.assignedTo, { cascade: false })

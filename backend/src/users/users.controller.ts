@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   ForbiddenException,
+  InternalServerErrorException,
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -44,7 +45,7 @@ export class UsersController {
   async getMyProfile(@Request() req: ExpressRequest) {
     const user = req.user;
     if (!user) {
-      throw new Error('User not found in request');
+      throw new InternalServerErrorException('User not found in request');
     }
     // JWT payload has 'sub' field (user ID)
     const userId = (user as any).sub || (user as any).id;
@@ -87,7 +88,7 @@ export class UsersController {
   ) {
     const user = req.user;
     if (!user) {
-      throw new Error('User not found in request');
+      throw new InternalServerErrorException('User not found in request');
     }
 
     const userRole = (user as any).role;
@@ -100,7 +101,7 @@ export class UsersController {
     // Check if user is team admin of the requested team
     const userEntity = await this.usersService.findByEmail((user as any).email);
     if (!userEntity) {
-      throw new Error('User entity not found');
+      throw new InternalServerErrorException('User entity not found');
     }
 
     // Check if user is team owner (using TeamMember) or system ADMIN
@@ -155,9 +156,37 @@ export class UsersController {
   }
 
   /**
+   * Update current user's profile
+   * Any authenticated user can update their own profile
+   * Must be declared BEFORE @Put(':id') to avoid being shadowed by the param route
+   */
+  @Put('me')
+  @HttpCode(HttpStatus.OK)
+  async updateMyProfile(
+    @Request() req: ExpressRequest,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    const user = req.user;
+    if (!user) {
+      throw new InternalServerErrorException('User not found in request');
+    }
+    // Users can only update their own profile (not role)
+    const restrictedDto = { ...updateUserDto };
+    delete restrictedDto.role;
+    // JWT payload has 'sub' field (user ID)
+    const userId = (user as any).sub || (user as any).id;
+    const userEmail = (user as any).email;
+    const userEntity = await this.usersService.findByEmail(userEmail);
+    if (!userEntity) {
+      throw new InternalServerErrorException('User entity not found');
+    }
+    return this.usersService.update(userId, restrictedDto, userEntity);
+  }
+
+  /**
    * Update user
    * ADMIN only
-   * Enterprise-grade: Prevents role escalation (only ADMIN can promote to ADMIN)
+   * Must be declared AFTER @Put('me') to avoid shadowing that route
    */
   @Put(':id')
   @UseGuards(RolesGuard)
@@ -168,45 +197,16 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
     @Request() req: ExpressRequest,
   ) {
-    // DTO validation happens automatically via ValidationPipe
     const adminUser = req.user;
     if (!adminUser) {
-      throw new Error('User not found in request');
+      throw new InternalServerErrorException('User not found in request');
     }
     const adminEmail = (adminUser as any).email;
     const adminEntity = await this.usersService.findByEmail(adminEmail);
     if (!adminEntity) {
-      throw new Error('Admin user entity not found');
+      throw new InternalServerErrorException('Admin user entity not found');
     }
     return this.usersService.update(id, updateUserDto, adminEntity);
-  }
-
-  /**
-   * Update current user's profile
-   * Any authenticated user can update their own profile
-   */
-  @Put('me')
-  @HttpCode(HttpStatus.OK)
-  async updateMyProfile(
-    @Request() req: ExpressRequest,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
-    const user = req.user;
-    if (!user) {
-      throw new Error('User not found in request');
-    }
-    // Users can only update their own profile (not role or teamId)
-    const restrictedDto = { ...updateUserDto };
-    delete restrictedDto.role; // Users cannot change their own role
-    delete restrictedDto.teamId; // Users cannot change their own team
-    // JWT payload has 'sub' field (user ID)
-    const userId = (user as any).sub || (user as any).id;
-    const userEmail = (user as any).email;
-    const userEntity = await this.usersService.findByEmail(userEmail);
-    if (!userEntity) {
-      throw new Error('User entity not found');
-    }
-    return this.usersService.update(userId, restrictedDto, userEntity);
   }
 
   /**

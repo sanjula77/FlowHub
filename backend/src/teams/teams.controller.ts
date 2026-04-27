@@ -10,6 +10,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
@@ -34,25 +35,21 @@ export class TeamsController {
   ) {}
 
   /**
-   * Get current user's team
-   * Business rule: Users can only see their own team
-   * Any authenticated user can access
+   * Get all teams the current user belongs to
    */
   @Get('me')
   @HttpCode(HttpStatus.OK)
-  async getMyTeam(@Request() req: ExpressRequest) {
+  async getMyTeams(@Request() req: ExpressRequest) {
     const user = req.user;
     if (!user) {
-      throw new Error('User not found in request');
+      throw new InternalServerErrorException('User not found in request');
     }
-    // Get user entity (needed for team relationship)
-    // JWT payload has 'email' field
     const userEmail = (user as any).email;
     const userEntity = await this.usersService.findByEmail(userEmail);
     if (!userEntity) {
-      throw new Error('User entity not found');
+      throw new InternalServerErrorException('User entity not found');
     }
-    return this.teamsService.getMyTeam(userEntity);
+    return this.teamsService.getMyTeams(userEntity);
   }
 
   /**
@@ -65,6 +62,24 @@ export class TeamsController {
   @HttpCode(HttpStatus.OK)
   async findAll() {
     return this.teamsService.findAll();
+  }
+
+  /**
+   * Get team members with team roles (OWNER/MANAGER/MEMBER)
+   * Any authenticated team member can view the list
+   */
+  @Get(':teamId/members')
+  @HttpCode(HttpStatus.OK)
+  async getTeamMembersWithRoles(
+    @Request() req: ExpressRequest,
+    @Param('teamId') teamId: string,
+  ) {
+    const user = req.user;
+    if (!user) throw new InternalServerErrorException('User not found in request');
+    const userEmail = (user as any).email;
+    const userEntity = await this.usersService.findByEmail(userEmail);
+    if (!userEntity) throw new InternalServerErrorException('User entity not found');
+    return this.teamsService.getTeamMembersWithRoles(userEntity, teamId);
   }
 
   /**
@@ -105,14 +120,14 @@ export class TeamsController {
     // DTO validation happens automatically via ValidationPipe
     const user = req.user;
     if (!user) {
-      throw new Error('User not found in request');
+      throw new InternalServerErrorException('User not found in request');
     }
     // Get user entity (needed for full user object)
     // JWT payload has 'email' field
     const userEmail = (user as any).email;
     const userEntity = await this.usersService.findByEmail(userEmail);
     if (!userEntity) {
-      throw new Error('User entity not found');
+      throw new InternalServerErrorException('User entity not found');
     }
     return this.teamsService.createTeam(userEntity, createTeamDto);
   }
@@ -132,14 +147,14 @@ export class TeamsController {
   ) {
     const user = req.user;
     if (!user) {
-      throw new Error('User not found in request');
+      throw new InternalServerErrorException('User not found in request');
     }
     // Get user entity (needed for team relationship)
     // JWT payload has 'email' field
     const userEmail = (user as any).email;
     const adminEntity = await this.usersService.findByEmail(userEmail);
     if (!adminEntity) {
-      throw new Error('Admin user entity not found');
+      throw new InternalServerErrorException('Admin user entity not found');
     }
     return this.teamsService.addUserToTeam(adminEntity, teamId, userId);
   }
@@ -158,12 +173,12 @@ export class TeamsController {
   ) {
     const user = req.user;
     if (!user) {
-      throw new Error('User not found in request');
+      throw new InternalServerErrorException('User not found in request');
     }
     const userEmail = (user as any).email;
     const changerEntity = await this.usersService.findByEmail(userEmail);
     if (!changerEntity) {
-      throw new Error('User entity not found');
+      throw new InternalServerErrorException('User entity not found');
     }
     return this.teamsService.updateTeamMemberRole(
       changerEntity,

@@ -30,7 +30,6 @@ export class UsersService {
    * AuthService handles team creation if not provided before calling this
    */
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    // Check if email already exists
     const emailExists = await this.userRepository.emailExists(
       createUserDto.email,
     );
@@ -38,21 +37,9 @@ export class UsersService {
       throw new ConflictException('User with this email already exists');
     }
 
-    // Validate teamId is provided (AuthService should handle team creation before calling this)
-    if (!createUserDto.teamId) {
-      throw new Error(
-        'Team ID is required. AuthService should create a team if not provided.',
-      );
-    }
-
-    // Assign to a variable so TypeScript knows it's defined (non-null assertion after check)
-    const teamId = createUserDto.teamId;
-
-    // Create user via repository (teamId is now guaranteed to be defined)
     const user = await this.userRepository.create({
       email: createUserDto.email,
-      password: createUserDto.password, // Password will be hashed by AuthService before calling this
-      teamId: teamId, // Now TypeScript knows this is a string
+      password: createUserDto.password,
       role: createUserDto.role || UserRole.USER,
       firstName: createUserDto.firstName,
       lastName: createUserDto.lastName,
@@ -179,14 +166,12 @@ export class UsersService {
     const dto = new UserResponseDto();
     dto.id = user.id;
     dto.email = user.email;
-    dto.teamId = user.teamId;
     dto.role = user.role;
     dto.firstName = user.firstName;
     dto.lastName = user.lastName;
     dto.createdAt = user.createdAt;
     dto.updatedAt = user.updatedAt;
     dto.lastLoginAt = user.lastLoginAt;
-    // Password is intentionally excluded
     return dto;
   }
 }
