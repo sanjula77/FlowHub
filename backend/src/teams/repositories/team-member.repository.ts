@@ -72,28 +72,26 @@ export class TeamMemberRepository implements ITeamMemberRepository {
   }
 
   async isTeamOwner(userId: string, teamId: string): Promise<boolean> {
-    // Debug: Raw SQL check
-    const rawQuery = `
-      SELECT id, user_id, team_id, role, length(role::text) as role_len, ascii(substring(role::text, 1, 1)) as role_ascii
-      FROM team_members 
-      WHERE user_id = $1 AND team_id = $2
-    `;
-    const rawResult = await this.repository.query(rawQuery, [userId, teamId]);
-    console.log('Raw DB Result:', rawResult);
-
-    // Debug: Check column type
-    const schemaQuery = `
-      SELECT column_name, data_type, udt_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'team_members' AND column_name = 'role'
-    `;
-    const schemaResult = await this.repository.query(schemaQuery);
-    console.log('Schema Info:', schemaResult);
-
     const member = await this.repository.findOne({
       where: { userId, teamId, role: TeamMemberRole.OWNER },
     });
+    return !!member;
+  }
 
+  async isTeamManager(userId: string, teamId: string): Promise<boolean> {
+    const member = await this.repository.findOne({
+      where: { userId, teamId, role: TeamMemberRole.MANAGER },
+    });
+    return !!member;
+  }
+
+  async isTeamPrivileged(userId: string, teamId: string): Promise<boolean> {
+    const member = await this.repository.findOne({
+      where: [
+        { userId, teamId, role: TeamMemberRole.OWNER },
+        { userId, teamId, role: TeamMemberRole.MANAGER },
+      ],
+    });
     return !!member;
   }
 

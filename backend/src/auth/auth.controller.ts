@@ -26,7 +26,6 @@ export class AuthController {
     const dto = new UserResponseDto();
     dto.id = user.id;
     dto.email = user.email;
-    dto.teamId = user.teamId;
     dto.role = user.role;
     dto.firstName = user.firstName;
     dto.lastName = user.lastName;

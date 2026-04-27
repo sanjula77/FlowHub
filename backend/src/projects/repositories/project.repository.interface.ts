@@ -14,6 +14,7 @@ export interface IProjectRepository {
     description?: string;
     teamId: string;
     createdById?: string;
+    isPrivate?: boolean;
   }): Promise<Project>;
 
   /**

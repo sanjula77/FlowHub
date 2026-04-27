@@ -43,10 +43,6 @@ export class Team {
   @Column({ name: 'admin_user_id', nullable: true })
   adminUserId?: string;
 
-  // One-to-Many: One team has many users
-  @OneToMany(() => User, (user) => user.team, { cascade: false })
-  users: User[];
-
   // One-to-Many: One team has many projects
   @OneToMany(() => Project, (project) => project.team, { cascade: false })
   projects: Project[];

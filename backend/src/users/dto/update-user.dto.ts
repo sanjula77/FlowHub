@@ -2,7 +2,6 @@ import {
   IsEmail,
   IsString,
   IsEnum,
-  IsUUID,
   IsOptional,
   MaxLength,
   Matches,
@@ -13,10 +12,6 @@ export class UpdateUserDto {
   @IsEmail({}, { message: 'Email must be a valid email address' })
   @IsOptional()
   email?: string;
-
-  @IsUUID('4', { message: 'Team ID must be a valid UUID' })
-  @IsOptional()
-  teamId?: string;
 
   @IsEnum(UserRole, { message: 'Role must be either USER or ADMIN' })
   @IsOptional()

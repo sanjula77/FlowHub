@@ -102,61 +102,53 @@ export class AuthService {
       const hashedPassword = await this.hashPassword(createUserDto.password);
 
       // 4. Determine user role
-      // - First user gets ADMIN (bootstrap the system)
-      // - Explicitly provided role takes precedence
+      // - INITIAL_ADMIN_EMAIL env var takes highest precedence (operational safety)
+      // - First user gets ADMIN (bootstrap fallback for fresh installs)
+      // - Explicitly provided role takes precedence over first-user check
       // - Otherwise default to USER (least privilege)
       let userRole = createUserDto.role;
-      if (!userRole) {
+      const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL;
+      if (initialAdminEmail && createUserDto.email === initialAdminEmail) {
+        userRole = UserRole.ADMIN;
+      } else if (!userRole) {
         userRole = isFirstUser ? UserRole.ADMIN : UserRole.USER;
       }
 
-      // 5. Handle team creation/assignment
-      let teamId = createUserDto.teamId;
-      let shouldCreateTeamMember = false;
+      // 5. Create personal team for the user
+      const emailLocalPart = createUserDto.email.split('@')[0];
+      const teamSlug = `personal-${emailLocalPart}-${Date.now()}`;
 
-      if (!teamId) {
-        // Create personal team for the user
-        const emailLocalPart = createUserDto.email.split('@')[0];
-        const teamSlug = `personal-${emailLocalPart}-${Date.now()}`;
-
-        const personalTeam = await this.teamRepository.create(
-          {
-            name: `${createUserDto.firstName || emailLocalPart}'s Team`,
-            slug: teamSlug,
-            description: 'Personal team',
-            adminUserId: undefined,
-          },
-          queryRunner.manager,
-        ); // Pass transaction manager
-
-        teamId = personalTeam.id;
-        shouldCreateTeamMember = true;
-      }
+      const personalTeam = await this.teamRepository.create(
+        {
+          name: `${createUserDto.firstName || emailLocalPart}'s Team`,
+          slug: teamSlug,
+          description: 'Personal team',
+          adminUserId: undefined,
+        },
+        queryRunner.manager,
+      );
 
       // 6. Create user (within transaction)
       const user = await this.userRepository.create(
         {
           email: createUserDto.email,
           password: hashedPassword,
-          teamId: teamId,
           role: userRole,
           firstName: createUserDto.firstName,
           lastName: createUserDto.lastName,
         },
         queryRunner.manager,
-      ); // Pass transaction manager
+      );
 
-      // 7. Create TeamMember record if needed (within transaction)
-      if (shouldCreateTeamMember) {
-        await this.teamMemberRepository.create(
-          {
-            userId: user.id,
-            teamId: teamId,
-            role: TeamMemberRole.OWNER,
-          },
-          queryRunner.manager,
-        ); // Pass transaction manager
-      }
+      // 7. Create TeamMember record (within transaction)
+      await this.teamMemberRepository.create(
+        {
+          userId: user.id,
+          teamId: personalTeam.id,
+          role: TeamMemberRole.OWNER,
+        },
+        queryRunner.manager,
+      );
 
       // 8. Commit transaction
       await queryRunner.commitTransaction();
@@ -225,7 +217,6 @@ export class AuthService {
     const dto = new UserResponseDto();
     dto.id = user.id;
     dto.email = user.email;
-    dto.teamId = user.teamId;
     dto.role = user.role;
     dto.firstName = user.firstName;
     dto.lastName = user.lastName;

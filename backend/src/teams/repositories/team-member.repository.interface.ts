@@ -48,6 +48,16 @@ export interface ITeamMemberRepository {
   isTeamOwner(userId: string, teamId: string): Promise<boolean>;
 
   /**
+   * Check if user is team manager
+   */
+  isTeamManager(userId: string, teamId: string): Promise<boolean>;
+
+  /**
+   * Check if user has elevated team privileges (OWNER or MANAGER)
+   */
+  isTeamPrivileged(userId: string, teamId: string): Promise<boolean>;
+
+  /**
    * Check if user is team member (any role)
    */
   isTeamMember(userId: string, teamId: string): Promise<boolean>;

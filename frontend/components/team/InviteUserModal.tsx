@@ -22,14 +22,18 @@ export default function InviteUserModal({ teamId, onClose, onSuccess }: InviteUs
     setLoading(true);
 
     try {
-      await inviteUser({
+      const result = await inviteUser({
         email,
         teamId,
         role,
         customMessage: message || undefined,
       });
       onSuccess();
-      alert(`Invitation sent to ${email}!`);
+      if ((result as any)?.existingUserAdded) {
+        alert(`${email} already has a FlowHub account and was added to the team directly.`);
+      } else {
+        alert(`Invitation sent to ${email}!`);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to send invitation');
     } finally {

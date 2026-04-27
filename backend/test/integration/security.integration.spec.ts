@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+﻿import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { DataSource, IsNull } from 'typeorm';
 import request from 'supertest';
@@ -131,13 +131,6 @@ describe('Security & Authorization Integration (e2e)', () => {
       role: TeamMemberRole.OWNER,
     });
 
-    // Update users with teamId
-    const userRepository = dataSource.getRepository(
-      require('../../src/users/user.entity').User,
-    );
-    await userRepository.update(teamOwner.id, { teamId });
-    await userRepository.update(teamMember.id, { teamId });
-    await userRepository.update(otherTeamUser.id, { teamId: otherTeamId });
 
     // Get tokens
     adminToken = await getAuthToken(app, 'admin@example.com', 'password123');
@@ -227,7 +220,6 @@ describe('Security & Authorization Integration (e2e)', () => {
       const project = projectRepository.create({
         name: 'Team A Project',
         description: 'Private project',
-        teamId: teamId,
         createdById: teamOwner.id,
       });
       const savedProject = await projectRepository.save(project);
@@ -291,7 +283,6 @@ describe('Security & Authorization Integration (e2e)', () => {
       const project = projectRepository.create({
         name: 'Team B Project',
         description: 'Team B only',
-        teamId: otherTeamId,
         createdById: otherUser!.id,
       });
       const savedProject = await projectRepository.save(project);
@@ -333,7 +324,6 @@ describe('Security & Authorization Integration (e2e)', () => {
       const project = projectRepository.create({
         name: 'Deleted Project',
         description: 'Will be deleted',
-        teamId: teamId,
         createdById: teamOwner.id,
       });
       const savedProject = await projectRepository.save(project);
@@ -364,7 +354,6 @@ describe('Security & Authorization Integration (e2e)', () => {
       const project = projectRepository.create({
         name: 'Test Project',
         description: 'For tasks',
-        teamId: teamId,
         createdById: teamOwner.id,
       });
       const savedProject = await projectRepository.save(project);
@@ -373,7 +362,6 @@ describe('Security & Authorization Integration (e2e)', () => {
         title: 'Deleted Task',
         description: 'Will be deleted',
         projectId: savedProject.id,
-        teamId: teamId,
         status: TaskStatus.TODO,
       });
       const savedTask = await taskRepository.save(task);

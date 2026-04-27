@@ -7,6 +7,7 @@ import { TaskRepository } from './repositories/task.repository';
 import { ProjectsModule } from '../projects/projects.module';
 import { TeamsModule } from '../teams/teams.module';
 import { UsersModule } from '../users/users.module';
+import { LabelsModule } from '../labels/labels.module';
 
 /**
  * Tasks Module
@@ -18,10 +19,11 @@ import { UsersModule } from '../users/users.module';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Task]), // Register Task entity for TypeORM
-    ProjectsModule, // Import ProjectsModule to access IProjectRepository
-    TeamsModule, // Import TeamsModule to access ITeamRepository
-    UsersModule, // Import UsersModule to access IUserRepository
+    TypeOrmModule.forFeature([Task]),
+    ProjectsModule,
+    TeamsModule,
+    UsersModule,
+    LabelsModule,
   ],
   providers: [
     TasksService,

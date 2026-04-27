@@ -4,7 +4,6 @@ import {
   MinLength,
   MaxLength,
   IsEnum,
-  IsUUID,
   IsOptional,
   Matches,
 } from 'class-validator';
@@ -23,10 +22,6 @@ export class CreateUserDto {
       'Password must contain at least one uppercase letter, one lowercase letter, and one number',
   })
   password: string;
-
-  @IsUUID('4', { message: 'Team ID must be a valid UUID' })
-  @IsOptional()
-  teamId?: string;
 
   @IsEnum(UserRole, { message: 'Role must be either USER or ADMIN' })
   @IsOptional()
