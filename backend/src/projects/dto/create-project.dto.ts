@@ -5,6 +5,7 @@ import {
   MaxLength,
   IsUUID,
   IsOptional,
+  IsBoolean,
 } from 'class-validator';
 
 export class CreateProjectDto {
@@ -22,4 +23,8 @@ export class CreateProjectDto {
   @IsUUID('4', { message: 'Team ID must be a valid UUID' })
   @IsNotEmpty({ message: 'Team ID is required' })
   teamId: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPrivate?: boolean;
 }

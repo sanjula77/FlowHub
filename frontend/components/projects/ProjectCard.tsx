@@ -5,7 +5,7 @@ import { User } from '@/types/user';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { Calendar, Edit, Trash2 } from 'lucide-react';
+import { Calendar, Edit, Trash2, Lock } from 'lucide-react';
 import { useMemo } from 'react';
 
 interface ProjectCardProps {
@@ -47,6 +47,11 @@ export default function ProjectCard({
             <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
             {isCreator && (
               <Badge variant="primary" size="sm">Creator</Badge>
+            )}
+            {project.isPrivate && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                <Lock className="w-3 h-3" /> Private
+              </span>
             )}
           </div>
           {project.description && (

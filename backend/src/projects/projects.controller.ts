@@ -60,6 +60,45 @@ export class ProjectsController {
   }
 
   /**
+   * Get project members (for private project access management)
+   */
+  @Get(':id/members')
+  @HttpCode(HttpStatus.OK)
+  async getProjectMembers(@Param('id') id: string, @Request() req: ExpressRequest) {
+    const userId = (req.user as any).sub;
+    return this.projectsService.getProjectMembers(userId, id);
+  }
+
+  /**
+   * Add a user to a private project
+   */
+  @Post(':id/members')
+  @HttpCode(HttpStatus.CREATED)
+  async addProjectMember(
+    @Param('id') id: string,
+    @Body('userId') userId: string,
+    @Request() req: ExpressRequest,
+  ) {
+    const requesterId = (req.user as any).sub;
+    await this.projectsService.addProjectMember(requesterId, id, userId);
+    return { message: 'Member added to project' };
+  }
+
+  /**
+   * Remove a user from a private project
+   */
+  @Delete(':id/members/:userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeProjectMember(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Request() req: ExpressRequest,
+  ) {
+    const requesterId = (req.user as any).sub;
+    await this.projectsService.removeProjectMember(requesterId, id, userId);
+  }
+
+  /**
    * Get project by ID with role-based access control
    * ADMIN: Can access any project
    * USER: Can only access projects from their team

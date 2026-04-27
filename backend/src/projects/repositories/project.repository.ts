@@ -21,12 +21,14 @@ export class ProjectRepository implements IProjectRepository {
     description?: string;
     teamId: string;
     createdById?: string;
+    isPrivate?: boolean;
   }): Promise<Project> {
     const project = this.typeOrmRepository.create({
       name: projectData.name,
       description: projectData.description,
       teamId: projectData.teamId,
       createdById: projectData.createdById,
+      isPrivate: projectData.isPrivate ?? false,
     });
 
     return this.typeOrmRepository.save(project);
