@@ -2,15 +2,16 @@
 # This keeps builds fast and prevents secrets from leaking into the image.
 
 node_modules/
-.next/
+dist/
 .git/
 .gitignore
 .env
 .env.*
-.env*.local
+!.env.example
 coverage/
 *.log
 npm-debug.log*
 .DS_Store
 README.md
+test/
 .choreo/

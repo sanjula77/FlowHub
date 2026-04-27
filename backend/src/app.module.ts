@@ -37,7 +37,7 @@ import { BootstrapService } from './bootstrap.service';
       password: process.env.DB_PASSWORD || 'flowhub',
       database: process.env.DB_NAME || 'flowhub_db',
       entities: [User, Team, TeamMember, Invitation, Project, ProjectMember, Task, AuditLog, Comment, Label, TaskLabel],
-      synchronize: true,
+      synchronize: process.env.NODE_ENV !== 'production',
     }),
     AuthModule,
     UsersModule,
