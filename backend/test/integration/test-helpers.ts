@@ -52,10 +52,10 @@ export async function createTestUser(
 ): Promise<User> {
   const userRepository = dataSource.getRepository(User);
   const teamRepository = dataSource.getRepository(Team);
-
-  let teamId = userData.teamId;
+  const memberRepository = dataSource.getRepository(TeamMember);
 
   // Create a personal team if teamId is not provided
+  let teamId = userData.teamId;
   if (!teamId) {
     const emailLocalPart = userData.email.split('@')[0];
     const teamSlug = `personal-${emailLocalPart}-${Date.now()}`;
@@ -69,15 +69,26 @@ export async function createTestUser(
     teamId = team.id;
   }
 
-  const user = userRepository.create({
-    email: userData.email,
-    password: userData.password,
-    role: userData.role || 'USER',
-    firstName: userData.firstName || 'Test',
-    lastName: userData.lastName || 'User',
-    teamId: teamId,
-  });
-  return await userRepository.save(user);
+  const user = await userRepository.save(
+    userRepository.create({
+      email: userData.email,
+      password: userData.password,
+      role: (userData.role as any) || 'USER',
+      firstName: userData.firstName || 'Test',
+      lastName: userData.lastName || 'User',
+    }),
+  );
+
+  // Create TeamMember record
+  await memberRepository.save(
+    memberRepository.create({
+      userId: user.id,
+      teamId: teamId,
+      role: 'OWNER' as any,
+    }),
+  );
+
+  return user;
 }
 
 /**
@@ -122,7 +133,11 @@ export async function createTestTeamMember(
   },
 ): Promise<TeamMember> {
   const memberRepository = dataSource.getRepository(TeamMember);
-  const member = memberRepository.create(memberData);
+  const member = memberRepository.create({
+    userId: memberData.userId,
+    teamId: memberData.teamId,
+    role: memberData.role as any,
+  });
   return await memberRepository.save(member);
 }
 

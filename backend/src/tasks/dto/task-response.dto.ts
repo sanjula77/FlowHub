@@ -10,8 +10,8 @@ export class TaskResponseDto {
   assignedToId?: string;
   priority?: number;
   dueDate?: Date;
-  version: number; // Version number for optimistic locking
+  version: number;
   createdAt: Date;
   updatedAt: Date;
-  // deletedAt is intentionally excluded for active responses
+  labels: { id: string; name: string; color: string }[];
 }

@@ -26,7 +26,6 @@ describe('TasksService', () => {
     id: 'admin-1',
     email: 'admin@example.com',
     password: 'hashed',
-    teamId: 'team-1',
     role: UserRole.ADMIN,
     firstName: 'Admin',
     lastName: 'User',
@@ -40,7 +39,6 @@ describe('TasksService', () => {
     id: 'creator-1',
     email: 'creator@example.com',
     password: 'hashed',
-    teamId: 'team-1',
     role: UserRole.USER,
     firstName: 'Project',
     lastName: 'Creator',
@@ -54,7 +52,6 @@ describe('TasksService', () => {
     id: 'owner-1',
     email: 'owner@example.com',
     password: 'hashed',
-    teamId: 'team-1',
     role: UserRole.USER,
     firstName: 'Team',
     lastName: 'Owner',
@@ -68,7 +65,6 @@ describe('TasksService', () => {
     id: 'assignee-1',
     email: 'assignee@example.com',
     password: 'hashed',
-    teamId: 'team-1',
     role: UserRole.USER,
     firstName: 'Assigned',
     lastName: 'User',
@@ -81,7 +77,6 @@ describe('TasksService', () => {
   const mockProject = {
     id: 'project-1',
     name: 'Test Project',
-    teamId: 'team-1',
     createdById: projectCreator.id,
     deletedAt: null,
   };
@@ -92,7 +87,6 @@ describe('TasksService', () => {
     description: 'Test description',
     status: TaskStatus.TODO,
     projectId: 'project-1',
-    teamId: 'team-1',
     assignedToId: assignedUser.id,
     createdById: projectCreator.id,
     createdAt: new Date(),
@@ -248,7 +242,6 @@ describe('TasksService', () => {
         id: 'unauthorized-1',
         email: 'unauthorized@example.com',
         password: 'hashed',
-        teamId: 'team-2',
         role: UserRole.USER,
         firstName: 'Unauthorized',
         lastName: 'User',
@@ -355,7 +348,6 @@ describe('TasksService', () => {
         id: 'unauthorized-1',
         email: 'unauthorized@example.com',
         password: 'hashed',
-        teamId: 'team-2',
         role: UserRole.USER,
         firstName: 'Unauthorized',
         lastName: 'User',
@@ -406,7 +398,6 @@ describe('TasksService', () => {
         id: 'unauthorized-1',
         email: 'unauthorized@example.com',
         password: 'hashed',
-        teamId: 'team-2',
         role: UserRole.USER,
         firstName: 'Unauthorized',
         lastName: 'User',
@@ -637,7 +628,6 @@ describe('TasksService', () => {
         id: 'other-user',
         email: 'other@example.com',
         password: 'hashed',
-        teamId: 'team-2',
         role: UserRole.USER,
         firstName: 'Other',
         lastName: 'User',
@@ -692,7 +682,6 @@ describe('TasksService', () => {
       const otherTeamUser: User = {
         ...assignedUser,
         id: 'user-other-team',
-        teamId: 'team-2',
       };
       mockProjectRepository.findById.mockResolvedValue(mockProject);
       mockTeamRepository.findById.mockResolvedValue({
@@ -774,7 +763,6 @@ describe('TasksService', () => {
     it('should throw NotFoundException if user from different team', async () => {
       const otherTeamUser: User = {
         ...projectCreator,
-        teamId: 'team-2',
       };
       mockTaskRepository.findById.mockResolvedValue(mockTask);
 
@@ -876,7 +864,6 @@ describe('TasksService', () => {
     it('should throw ForbiddenException if USER tries to access other team project', async () => {
       const otherTeamProject = {
         ...mockProject,
-        teamId: 'team-2',
       };
       mockProjectRepository.findById.mockResolvedValue(otherTeamProject);
 
@@ -888,7 +875,6 @@ describe('TasksService', () => {
     it('should throw NotFoundException if user has no team', async () => {
       const userWithoutTeam: User = {
         ...projectCreator,
-        teamId: null,
       };
 
       await expect(service.findAll(userWithoutTeam)).rejects.toThrow(
@@ -929,7 +915,6 @@ describe('TasksService', () => {
     it('should throw ForbiddenException if USER tries to access other team project', async () => {
       const otherTeamProject = {
         ...mockProject,
-        teamId: 'team-2',
       };
       mockProjectRepository.findById.mockResolvedValue(otherTeamProject);
 
@@ -1023,7 +1008,6 @@ describe('TasksService', () => {
       const otherTeamUser: User = {
         ...assignedUser,
         id: 'other-user',
-        teamId: 'team-2',
       };
       mockTaskRepository.findById.mockResolvedValue(mockTask);
       mockProjectRepository.findById.mockResolvedValue(mockProject);
@@ -1159,7 +1143,6 @@ describe('TasksService', () => {
     it('should throw BadRequestException if assigned user from different team', async () => {
       const otherTeamUser: User = {
         ...assignedUser,
-        teamId: 'team-2',
       };
       mockTaskRepository.findById.mockResolvedValue(mockTask);
       mockProjectRepository.findById.mockResolvedValue(mockProject);

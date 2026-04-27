@@ -20,7 +20,6 @@ describe('TeamsService', () => {
     id: 'admin-1',
     email: 'admin@example.com',
     password: 'hashed',
-    teamId: 'team-1',
     role: UserRole.ADMIN,
     firstName: 'Admin',
     lastName: 'User',
@@ -34,7 +33,6 @@ describe('TeamsService', () => {
     id: 'owner-1',
     email: 'owner@example.com',
     password: 'hashed',
-    teamId: 'team-1',
     role: UserRole.USER,
     firstName: 'Team',
     lastName: 'Owner',
@@ -48,7 +46,6 @@ describe('TeamsService', () => {
     id: 'user-1',
     email: 'user@example.com',
     password: 'hashed',
-    teamId: 'team-1',
     role: UserRole.USER,
     firstName: 'Regular',
     lastName: 'User',
@@ -134,7 +131,6 @@ describe('TeamsService', () => {
       mockTeamMemberRepository.create.mockResolvedValue({
         id: 'member-1',
         userId: teamOwner.id,
-        teamId: mockTeam.id,
         role: TeamMemberRole.OWNER,
       });
 
@@ -143,7 +139,6 @@ describe('TeamsService', () => {
       expect(result.id).toBe(mockTeam.id);
       expect(mockTeamMemberRepository.create).toHaveBeenCalledWith({
         userId: teamOwner.id,
-        teamId: mockTeam.id,
         role: TeamMemberRole.OWNER,
       });
     });
@@ -589,7 +584,6 @@ describe('TeamsService', () => {
     it('should return user team', async () => {
       const userWithTeam: User = {
         ...regularUser,
-        teamId: 'team-1',
       };
       const mockTeam = {
         id: 'team-1',
@@ -598,7 +592,7 @@ describe('TeamsService', () => {
       };
       mockTeamRepository.findById.mockResolvedValue(mockTeam);
 
-      const result = await service.getMyTeam(userWithTeam);
+      const result = await service.getMyTeams(userWithTeam);
 
       expect(result.id).toBe('team-1');
     });
@@ -609,7 +603,7 @@ describe('TeamsService', () => {
         deletedAt: new Date(),
       };
 
-      await expect(service.getMyTeam(deletedUser)).rejects.toThrow(
+      await expect(service.getMyTeams(deletedUser)).rejects.toThrow(
         'User account is inactive',
       );
     });
@@ -617,10 +611,9 @@ describe('TeamsService', () => {
     it('should throw NotFoundException if user has no team', async () => {
       const userWithoutTeam: User = {
         ...regularUser,
-        teamId: null,
       };
 
-      await expect(service.getMyTeam(userWithoutTeam)).rejects.toThrow(
+      await expect(service.getMyTeams(userWithoutTeam)).rejects.toThrow(
         'User does not belong to any team',
       );
     });
@@ -628,11 +621,10 @@ describe('TeamsService', () => {
     it('should throw NotFoundException if team not found', async () => {
       const userWithTeam: User = {
         ...regularUser,
-        teamId: 'team-1',
       };
       mockTeamRepository.findById.mockResolvedValue(null);
 
-      await expect(service.getMyTeam(userWithTeam)).rejects.toThrow(
+      await expect(service.getMyTeams(userWithTeam)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -640,7 +632,6 @@ describe('TeamsService', () => {
     it('should throw NotFoundException if team is deleted', async () => {
       const userWithTeam: User = {
         ...regularUser,
-        teamId: 'team-1',
       };
       const deletedTeam = {
         id: 'team-1',
@@ -649,7 +640,7 @@ describe('TeamsService', () => {
       };
       mockTeamRepository.findById.mockResolvedValue(deletedTeam);
 
-      await expect(service.getMyTeam(userWithTeam)).rejects.toThrow(
+      await expect(service.getMyTeams(userWithTeam)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -661,7 +652,6 @@ describe('TeamsService', () => {
         id: 'target-user',
         email: 'target@example.com',
         password: 'hashed',
-        teamId: null,
         role: UserRole.USER,
         firstName: 'Target',
         lastName: 'User',
@@ -686,7 +676,6 @@ describe('TeamsService', () => {
       mockTeamMemberRepository.create.mockResolvedValue({
         id: 'member-1',
         userId: targetUser.id,
-        teamId: 'team-1',
         role: TeamMemberRole.MEMBER,
       });
 
@@ -705,7 +694,6 @@ describe('TeamsService', () => {
         id: 'target-user',
         email: 'target@example.com',
         password: 'hashed',
-        teamId: null,
         role: UserRole.USER,
         firstName: 'Target',
         lastName: 'User',
@@ -730,7 +718,6 @@ describe('TeamsService', () => {
       mockTeamMemberRepository.create.mockResolvedValue({
         id: 'member-1',
         userId: targetUser.id,
-        teamId: 'team-1',
         role: TeamMemberRole.MEMBER,
       });
 
@@ -787,7 +774,6 @@ describe('TeamsService', () => {
         id: 'target-user',
         email: 'target@example.com',
         password: 'hashed',
-        teamId: 'team-1',
         role: UserRole.USER,
         firstName: 'Target',
         lastName: 'User',
@@ -816,7 +802,6 @@ describe('TeamsService', () => {
         id: 'target-user',
         email: 'target@example.com',
         password: 'hashed',
-        teamId: 'team-2',
         role: UserRole.USER,
         firstName: 'Target',
         lastName: 'User',
@@ -875,7 +860,6 @@ describe('TeamsService', () => {
     it('should return true if user is admin via adminUserId', async () => {
       const adminUserWithTeam: User = {
         ...adminUser,
-        teamId: 'team-1',
       };
       const mockTeam = {
         id: 'team-1',
@@ -914,7 +898,6 @@ describe('TeamsService', () => {
     it('should return false if user teamId does not match', async () => {
       const userWithDifferentTeam: User = {
         ...regularUser,
-        teamId: 'team-2',
       };
 
       mockTeamMemberRepository.isTeamOwner.mockResolvedValue(false);

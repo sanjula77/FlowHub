@@ -52,8 +52,7 @@ describe('Teams E2E Tests', () => {
     const adminPassword = await bcrypt.hash('admin123', 10);
     adminUser = userRepository.create({
       email: 'admin@test.com',
-      password: adminPassword,
-      teamId: testTeam.id,
+      password: adminPassword,
       role: UserRole.ADMIN,
     });
     adminUser = await userRepository.save(adminUser);
@@ -66,8 +65,7 @@ describe('Teams E2E Tests', () => {
     const userPassword = await bcrypt.hash('user123', 10);
     regularUser = userRepository.create({
       email: 'user@test.com',
-      password: userPassword,
-      teamId: testTeam.id,
+      password: userPassword,
       role: UserRole.USER,
     });
     regularUser = await userRepository.save(regularUser);

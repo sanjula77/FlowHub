@@ -4,7 +4,6 @@ export interface User {
   role: 'USER' | 'ADMIN';
   firstName?: string;
   lastName?: string;
-  teamId: string;
   createdAt: string;
   updatedAt?: string;
   lastLoginAt?: string;

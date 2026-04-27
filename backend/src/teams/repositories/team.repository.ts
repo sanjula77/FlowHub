@@ -42,21 +42,21 @@ export class TeamRepository implements ITeamRepository {
   async findById(id: string): Promise<Team | null> {
     return this.typeOrmRepository.findOne({
       where: { id, deletedAt: IsNull() },
-      relations: ['adminUser', 'users'],
+      relations: ['adminUser'],
     });
   }
 
   async findBySlug(slug: string): Promise<Team | null> {
     return this.typeOrmRepository.findOne({
       where: { slug, deletedAt: IsNull() },
-      relations: ['adminUser', 'users'],
+      relations: ['adminUser'],
     });
   }
 
   async findAll(): Promise<Team[]> {
     return this.typeOrmRepository.find({
       where: { deletedAt: IsNull() },
-      relations: ['adminUser', 'users'],
+      relations: ['adminUser'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -64,7 +64,7 @@ export class TeamRepository implements ITeamRepository {
   async findByAdminUserId(adminUserId: string): Promise<Team[]> {
     return this.typeOrmRepository.find({
       where: { adminUserId, deletedAt: IsNull() },
-      relations: ['adminUser', 'users'],
+      relations: ['adminUser'],
     });
   }
 
@@ -103,12 +103,11 @@ export class TeamRepository implements ITeamRepository {
   }
 
   async countActiveUsers(teamId: string): Promise<number> {
-    return this.typeOrmRepository
-      .createQueryBuilder('team')
-      .innerJoin('team.users', 'user')
-      .where('team.id = :teamId', { teamId })
-      .andWhere('user.deletedAt IS NULL')
-      .getCount();
+    const result = await this.typeOrmRepository.query(
+      `SELECT COUNT(*) FROM team_members WHERE team_id = $1`,
+      [teamId],
+    );
+    return parseInt(result[0].count, 10);
   }
 
   async hasActiveUsers(teamId: string): Promise<boolean> {

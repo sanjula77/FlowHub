@@ -13,12 +13,11 @@ export interface IUserRepository {
     userData: {
       email: string;
       password: string;
-      teamId: string;
       role?: UserRole;
       firstName?: string;
       lastName?: string;
     },
-    entityManager?: any, // Using any to avoid circular dependency with typeorm in interface
+    entityManager?: any,
   ): Promise<User>;
 
   /**
