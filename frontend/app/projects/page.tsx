@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getMyProfile, getMyTeam, getProjects, deleteProject } from '@/lib/api';
+import { getMyProfile, getMyTeams, getProjects, deleteProject } from '@/lib/api';
 import ProjectList from '@/components/projects/ProjectList';
 import CreateProjectModal from '@/components/projects/CreateProjectModal';
 import MainLayout from '@/components/layout/MainLayout';
@@ -19,13 +19,15 @@ interface Team {
   id: string;
   name: string;
   slug: string;
+  adminUserId?: string;
+  userRole?: 'OWNER' | 'MANAGER' | 'MEMBER';
 }
 
 export default function ProjectsDashboard() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [team, setTeam] = useState<Team | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -44,10 +46,10 @@ export default function ProjectsDashboard() {
       setCurrentUser(userData);
 
       try {
-        const teamData = await getMyTeam();
-        setTeam(teamData);
+        const teamsData = await getMyTeams();
+        setTeams(Array.isArray(teamsData) ? teamsData : [teamsData]);
       } catch (err) {
-        // Error handled by catch block
+        // user has no teams yet
       }
 
       const projectsData = await getProjects();
@@ -92,6 +94,10 @@ export default function ProjectsDashboard() {
   };
 
   const isAdmin = currentUser?.role === 'ADMIN';
+  const privilegedTeam = teams.find((t) => t.userRole === 'OWNER' || t.userRole === 'MANAGER') ?? teams[0] ?? null;
+  const ownedTeam = privilegedTeam;
+  const isTeamPrivileged = teams.some((t) => t.userRole === 'OWNER' || t.userRole === 'MANAGER');
+  const canCreateProject = isAdmin || isTeamPrivileged;
 
   if (loading) {
     return (
@@ -119,10 +125,12 @@ export default function ProjectsDashboard() {
             <p className="mt-1 text-sm text-gray-500">
               {isAdmin
                 ? 'Manage all projects across teams'
-                : 'View projects in your team'}
+                : isTeamPrivileged
+                  ? 'Manage projects in your team'
+                  : 'View projects in your team'}
             </p>
           </div>
-          {isAdmin && team && (
+          {canCreateProject && ownedTeam && (
             <Button
               variant="primary"
               onClick={() => setShowCreateModal(true)}
@@ -146,7 +154,7 @@ export default function ProjectsDashboard() {
             projects={projects}
             currentUser={currentUser}
             isAdmin={isAdmin}
-            onDelete={isAdmin ? handleDeleteProject : undefined}
+            onDelete={canCreateProject ? handleDeleteProject : undefined}
             loading={false}
           />
         ) : (
@@ -161,7 +169,7 @@ export default function ProjectsDashboard() {
                     : 'No projects have been created in your team yet'
                 }
                 action={
-                  isAdmin && team ? (
+                  canCreateProject && ownedTeam ? (
                     <Button
                       variant="primary"
                       onClick={() => setShowCreateModal(true)}
@@ -177,9 +185,9 @@ export default function ProjectsDashboard() {
         )}
 
         {/* Create Project Modal */}
-        {showCreateModal && team && (
+        {showCreateModal && ownedTeam && (
           <CreateProjectModal
-            teamId={team.id}
+            teamId={ownedTeam.id}
             onClose={() => setShowCreateModal(false)}
             onSuccess={handleCreateProject}
           />
