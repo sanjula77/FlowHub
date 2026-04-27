@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  HomeIcon, 
-  FolderKanbanIcon, 
-  CheckSquareIcon, 
+import {
+  HomeIcon,
+  FolderKanbanIcon,
+  CheckSquareIcon,
   UsersIcon,
   SettingsIcon,
   ShieldCheckIcon,
+  BarChart3Icon,
+  UsersRoundIcon,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -21,6 +23,7 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   roles?: ('ADMIN' | 'USER')[];
+  children?: { label: string; href: string; icon: React.ComponentType<{ className?: string }> }[];
 }
 
 const navItems: NavItem[] = [
@@ -53,6 +56,11 @@ const navItems: NavItem[] = [
     href: '/admin',
     icon: ShieldCheckIcon,
     roles: ['ADMIN'],
+    children: [
+      { label: 'Analytics', href: '/admin/analytics', icon: BarChart3Icon },
+      { label: 'Users', href: '/admin/users', icon: UsersRoundIcon },
+      { label: 'Settings', href: '/admin/settings', icon: SettingsIcon },
+    ],
   },
 ];
 
@@ -140,28 +148,53 @@ export default function Sidebar({ userRole = 'USER' }: SidebarProps) {
               const active = isActive(item.href);
 
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsMobileOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-4 py-2.5 rounded-lg
-                    transition-all duration-200
-                    ${
-                      active
-                        ? 'bg-blue-50 text-blue-700 font-medium'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                    }
-                  `}
-                  aria-current={active ? 'page' : undefined}
-                >
-                  <Icon
-                    className={`w-5 h-5 ${
-                      active ? 'text-blue-600' : 'text-gray-400'
-                    }`}
-                  />
-                  <span className="text-sm">{item.label}</span>
-                </Link>
+                <div key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setIsMobileOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-4 py-2.5 rounded-lg
+                      transition-all duration-200
+                      ${
+                        active
+                          ? 'bg-blue-50 text-blue-700 font-medium'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      }
+                    `}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <span className="text-sm">{item.label}</span>
+                  </Link>
+
+                  {/* Sub-links (shown when parent is active) */}
+                  {item.children && active && (
+                    <div className="ml-9 mt-1 space-y-0.5">
+                      {item.children.map((child) => {
+                        const ChildIcon = child.icon;
+                        const childActive = mounted && pathname === child.href;
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={() => setIsMobileOpen(false)}
+                            className={`
+                              flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm
+                              transition-colors duration-150
+                              ${childActive
+                                ? 'bg-blue-50 text-blue-700 font-medium'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+                              }
+                            `}
+                          >
+                            <ChildIcon className={`w-4 h-4 ${childActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </nav>
