@@ -7,7 +7,9 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies
-RUN npm ci
+# --legacy-peer-deps needed because eslint-config-next@16 requires ESLint 9
+# but the project uses ESLint 8 — this flag ignores the peer dep conflict
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
