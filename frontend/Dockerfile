@@ -32,9 +32,10 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
 # Run as non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
-USER nextjs
+# UID must be between 10000-20000 per Choreo security policy (CKV_CHOREO_1)
+RUN addgroup -g 10001 -S nodejs && \
+    adduser -S nextjs -u 10001
+USER 10001
 
 # Choreo web applications default to port 8080
 EXPOSE 8080
