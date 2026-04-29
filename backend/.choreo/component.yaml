@@ -7,4 +7,5 @@ endpoints:
         port: 3001
       type: REST
       networkVisibilities:
-        - Project
+        - Public   # Gives a public choreoapps.dev URL accessible from browsers
+        - Project  # Also keeps internal project URL for service-to-service calls
