@@ -14,8 +14,11 @@ RUN npm ci --legacy-peer-deps
 # Copy source code
 COPY . .
 
+# Ensure public directory always exists (Git doesn't track empty directories)
+RUN mkdir -p /app/public
+
 # NEXT_PUBLIC_* vars are baked in at build time — pass via --build-arg in Choreo
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ARG NEXT_PUBLIC_API_URL=https://bcf4980a-7849-4fca-99b1-fb7d5f04a3ea-dev.e1-us-east-azure.choreoapis.dev/flowhub/flowhub-backend/v1.0
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 # Build Next.js in standalone mode (required for containerised deployments)
