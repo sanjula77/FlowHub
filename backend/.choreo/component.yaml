@@ -1,12 +1,10 @@
-schemaVersion: 1.1
-
-# ── FlowHub Backend (NestJS) ──────────────────────────────────────────────────
+schemaVersion: "1.2"
 endpoints:
-  - name: flowhub-api
-    type: REST
-    networkVisibilities:
-      - Project
-    context: /
-    service:
-      # Must match the port your NestJS app listens on (process.env.PORT ?? 3001)
-      port: 3001
+    - name: flowhub-api
+      displayName: flowhub-api
+      service:
+        basePath: /
+        port: 3001
+      type: REST
+      networkVisibilities:
+        - Project

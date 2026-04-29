@@ -30,9 +30,10 @@ RUN npm ci --only=production && npm cache clean --force
 COPY --from=builder /app/dist ./dist
 
 # Run as non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nestjs -u 1001
-USER nestjs
+# UID must be between 10000-20000 per Choreo security policy (CKV_CHOREO_1)
+RUN addgroup -g 10001 -S nodejs && \
+    adduser -S nestjs -u 10001
+USER 10001
 
 # Choreo / Kubernetes will inject PORT — default to 3001
 EXPOSE 3001
