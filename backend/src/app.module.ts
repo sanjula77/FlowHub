@@ -38,6 +38,9 @@ import { BootstrapService } from './bootstrap.service';
       database: process.env.DB_NAME || 'flowhub_db',
       entities: [User, Team, TeamMember, Invitation, Project, ProjectMember, Task, AuditLog, Comment, Label, TaskLabel],
       synchronize: process.env.NODE_ENV !== 'production',
+      // SSL required for Aiven-hosted PostgreSQL (Choreo managed database).
+      // Disabled locally when DB_SSL is not set.
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     }),
     AuthModule,
     UsersModule,
