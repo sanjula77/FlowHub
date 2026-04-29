@@ -1,22 +1,10 @@
-schemaVersion: 1.1
-
-# ── FlowHub Frontend (Next.js) ────────────────────────────────────────────────
-# Choreo reads this file to understand how to expose the web application.
-# Place this file at: frontend/.choreo/component.yaml
-# Set Docker Context Path to: frontend/
-# Set Dockerfile Path to:     frontend/Dockerfile
-#
-# Important: NEXT_PUBLIC_API_URL is baked in at build time.
-# Set it as a build-time environment variable in Choreo's component settings
-# pointing to your backend's Choreo internal project URL, e.g.:
-#   https://<backend-component-name>-<hash>-<env>.choreoapps.dev
-
+schemaVersion: "1.2"
 endpoints:
-  - name: flowhub-web
-    # Must match ENV PORT=8080 set in the frontend Dockerfile
-    port: 8080
-    type: REST
-    # Public visibility makes this accessible from the internet (user-facing app)
-    networkVisibilities:
-      - Public
-    context: /
+    - name: flowhub-web
+      displayName: flowhub-web
+      service:
+        basePath: /
+        port: 8080
+      type: REST
+      networkVisibilities:
+        - Public
