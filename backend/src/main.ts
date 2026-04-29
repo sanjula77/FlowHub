@@ -1,4 +1,10 @@
-import 'dotenv/config';
+// Load .env file in local development only.
+// In production (Choreo) environment variables are injected by the platform —
+// dotenv is a devDependency and won't be present in the production image.
+if (process.env.NODE_ENV !== 'production') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  require('dotenv').config();
+}
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
