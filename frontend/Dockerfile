@@ -17,7 +17,9 @@ COPY . .
 # Ensure public directory always exists (Git doesn't track empty directories)
 RUN mkdir -p /app/public
 
-# NEXT_PUBLIC_* vars are baked in at build time — pass via --build-arg in Choreo
+# NEXT_PUBLIC_* vars are baked in at build time.
+# ⚠️  UPDATE THIS URL after deploying the backend — use the backend's Public URL from Choreo.
+# Do NOT set NEXT_PUBLIC_API_URL as a Choreo build arg — it causes quoting issues.
 ARG NEXT_PUBLIC_API_URL=https://bcf4980a-7849-4fca-99b1-fb7d5f04a3ea-dev.e1-us-east-azure.choreoapis.dev/flowhub/flowhub-backend/v1.0
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
