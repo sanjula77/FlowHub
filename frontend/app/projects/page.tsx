@@ -6,14 +6,9 @@ import { getMyProfile, getMyTeams, getProjects, deleteProject } from '@/lib/api'
 import ProjectList from '@/components/projects/ProjectList';
 import CreateProjectModal from '@/components/projects/CreateProjectModal';
 import MainLayout from '@/components/layout/MainLayout';
-import LoadingState from '@/components/ui/LoadingState';
-import Alert from '@/components/ui/Alert';
-import Card, { CardHeader, CardContent } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import EmptyState from '@/components/ui/EmptyState';
 import { User } from '@/types/user';
 import { Project } from '@/types/project';
-import { FolderKanban, Plus } from 'lucide-react';
+import { FolderKanban, Plus, AlertCircle, Search } from 'lucide-react';
 
 interface Team {
   id: string;
@@ -32,33 +27,24 @@ export default function ProjectsDashboard() {
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    loadProjectsData();
-  }, []);
+  useEffect(() => { loadProjectsData(); }, []);
 
   const loadProjectsData = async () => {
     try {
       setLoading(true);
       setError('');
-
       const userData = await getMyProfile();
       setCurrentUser(userData);
-
       try {
         const teamsData = await getMyTeams();
         setTeams(Array.isArray(teamsData) ? teamsData : [teamsData]);
-      } catch (err) {
-        // user has no teams yet
-      }
-
+      } catch { /* no teams */ }
       const projectsData = await getProjects();
       setProjects(projectsData);
     } catch (err: any) {
-      if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
-        router.push('/login');
-        return;
-      }
+      if (err.message?.includes('401') || err.message?.includes('Unauthorized')) { router.push('/login'); return; }
       setError(err.message || 'Failed to load projects');
     } finally {
       setLoading(false);
@@ -82,112 +68,128 @@ export default function ProjectsDashboard() {
     }
   };
 
-  const getUserDisplayName = (user: User | null): string => {
+  const getDisplayName = (user: User | null) => {
     if (!user) return 'User';
-    if (user.firstName && user.lastName) {
-      return `${user.firstName} ${user.lastName}`;
-    }
-    if (user.firstName) {
-      return user.firstName;
-    }
+    if (user.firstName && user.lastName) return `${user.firstName} ${user.lastName}`;
+    if (user.firstName) return user.firstName;
     return user.email.split('@')[0];
   };
 
   const isAdmin = currentUser?.role === 'ADMIN';
-  const privilegedTeam = teams.find((t) => t.userRole === 'OWNER' || t.userRole === 'MANAGER') ?? teams[0] ?? null;
-  const ownedTeam = privilegedTeam;
-  const isTeamPrivileged = teams.some((t) => t.userRole === 'OWNER' || t.userRole === 'MANAGER');
+  const privilegedTeam = teams.find(t => t.userRole === 'OWNER' || t.userRole === 'MANAGER') ?? teams[0] ?? null;
+  const isTeamPrivileged = teams.some(t => t.userRole === 'OWNER' || t.userRole === 'MANAGER');
   const canCreateProject = isAdmin || isTeamPrivileged;
+
+  const filtered = projects.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    (p.description ?? '').toLowerCase().includes(search.toLowerCase())
+  );
 
   if (loading) {
     return (
-      <MainLayout
-        userName={getUserDisplayName(currentUser)}
-        userEmail={currentUser?.email}
-        userRole={currentUser?.role as 'ADMIN' | 'USER'}
-      >
-        <LoadingState message="Loading projects..." />
+      <MainLayout userName={getDisplayName(currentUser)} userEmail={currentUser?.email} userRole={currentUser?.role as 'ADMIN' | 'USER'}>
+        <div className="animate-pulse space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="h-8 w-32 bg-gray-100 rounded-lg" />
+            <div className="h-9 w-36 bg-gray-100 rounded-xl" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => <div key={i} className="h-44 bg-gray-100 rounded-2xl" />)}
+          </div>
+        </div>
       </MainLayout>
     );
   }
 
   return (
-    <MainLayout
-      userName={getUserDisplayName(currentUser)}
-      userEmail={currentUser?.email}
-      userRole={currentUser?.role as 'ADMIN' | 'USER'}
-    >
+    <MainLayout userName={getDisplayName(currentUser)} userEmail={currentUser?.email} userRole={currentUser?.role as 'ADMIN' | 'USER'}>
       <div className="space-y-6">
-        {/* Page Header */}
-        <div className="flex items-center justify-between">
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
             <p className="mt-1 text-sm text-gray-500">
-              {isAdmin
-                ? 'Manage all projects across teams'
-                : isTeamPrivileged
-                  ? 'Manage projects in your team'
-                  : 'View projects in your team'}
+              {isAdmin ? 'Manage all projects across teams' : isTeamPrivileged ? 'Manage projects in your team' : 'View projects in your team'}
             </p>
           </div>
-          {canCreateProject && ownedTeam && (
-            <Button
-              variant="primary"
+          {canCreateProject && privilegedTeam && (
+            <button
               onClick={() => setShowCreateModal(true)}
-              leftIcon={<Plus className="w-4 h-4" />}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm flex-shrink-0"
             >
-              Create Project
-            </Button>
+              <Plus className="w-4 h-4" />
+              New project
+            </button>
           )}
         </div>
 
-        {/* Error Message */}
+        {/* Error */}
         {error && (
-          <Alert variant="error" onClose={() => setError('')}>
-            {error}
-          </Alert>
+          <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
+            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            <p className="text-sm text-red-700">{error}</p>
+            <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600 text-lg leading-none">×</button>
+          </div>
         )}
 
-        {/* Projects List */}
-        {projects.length > 0 ? (
+        {/* Search */}
+        {projects.length > 0 && (
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+          </div>
+        )}
+
+        {/* Project count */}
+        {projects.length > 0 && (
+          <p className="text-sm text-gray-500">
+            {filtered.length === projects.length ? `${projects.length} project${projects.length !== 1 ? 's' : ''}` : `${filtered.length} of ${projects.length} projects`}
+          </p>
+        )}
+
+        {/* Projects */}
+        {filtered.length > 0 ? (
           <ProjectList
-            projects={projects}
+            projects={filtered}
             currentUser={currentUser}
             isAdmin={isAdmin}
             onDelete={canCreateProject ? handleDeleteProject : undefined}
             loading={false}
           />
         ) : (
-          <Card>
-            <CardContent>
-              <EmptyState
-                icon={<FolderKanban className="w-16 h-16 text-gray-300" />}
-                title="No projects yet"
-                description={
-                  isAdmin
-                    ? 'Get started by creating your first project'
-                    : 'No projects have been created in your team yet'
-                }
-                action={
-                  canCreateProject && ownedTeam ? (
-                    <Button
-                      variant="primary"
-                      onClick={() => setShowCreateModal(true)}
-                      leftIcon={<Plus className="w-4 h-4" />}
-                    >
-                      Create Project
-                    </Button>
-                  ) : null
-                }
-              />
-            </CardContent>
-          </Card>
+          <div className="flex flex-col items-center justify-center py-24 text-center bg-white border border-gray-100 rounded-2xl">
+            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+              <FolderKanban className="w-8 h-8 text-gray-300" />
+            </div>
+            <h3 className="text-base font-semibold text-gray-700">
+              {search ? 'No projects match your search' : 'No projects yet'}
+            </h3>
+            <p className="mt-2 text-sm text-gray-400 max-w-xs">
+              {search ? 'Try a different search term' : isAdmin ? 'Get started by creating your first project.' : 'No projects have been created in your team yet.'}
+            </p>
+            {!search && canCreateProject && privilegedTeam && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-6 flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Create your first project
+              </button>
+            )}
+          </div>
         )}
 
-        {/* Create Project Modal */}
-        {showCreateModal && ownedTeam && (
+        {/* Modal */}
+        {showCreateModal && privilegedTeam && (
           <CreateProjectModal
-            teamId={ownedTeam.id}
+            teamId={privilegedTeam.id}
             onClose={() => setShowCreateModal(false)}
             onSuccess={handleCreateProject}
           />
