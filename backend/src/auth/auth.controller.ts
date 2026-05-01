@@ -49,17 +49,19 @@ export class AuthController {
     const tokens = this.authService.generateTokens(userEntity);
 
     // Set HTTP-only cookies
+    // sameSite: 'none' is required for cross-origin cookies (frontend on choreoapps.dev,
+    // backend on choreoapis.dev are different domains). 'none' requires secure: true.
     res.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -88,17 +90,19 @@ export class AuthController {
     const tokens = this.authService.generateTokens(user);
 
     // Set HTTP-only cookies
+    // sameSite: 'none' is required for cross-origin cookies (frontend on choreoapps.dev,
+    // backend on choreoapis.dev are different domains). 'none' requires secure: true.
     res.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -128,17 +132,19 @@ export class AuthController {
     const tokens = await this.authService.refreshToken(refreshToken);
 
     // Set HTTP-only cookies
+    // sameSite: 'none' is required for cross-origin cookies (frontend on choreoapps.dev,
+    // backend on choreoapis.dev are different domains). 'none' requires secure: true.
     res.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true,
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
