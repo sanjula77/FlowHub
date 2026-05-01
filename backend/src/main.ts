@@ -62,7 +62,10 @@ async function bootstrap() {
     );
 
     app.enableCors({
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      // origin: true reflects the exact request origin back, which works with
+      // credentials: true. This is safe because the API is protected by JWT.
+      // Using a specific origin was causing CORS issues behind Choreo's gateway.
+      origin: true,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
