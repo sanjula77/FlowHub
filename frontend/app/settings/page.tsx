@@ -4,13 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMyProfile, updateMyProfile } from '@/lib/api';
 import MainLayout from '@/components/layout/MainLayout';
-import LoadingState from '@/components/ui/LoadingState';
-import Alert from '@/components/ui/Alert';
-import Card, { CardHeader, CardContent } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
 import { User } from '@/types/user';
-import { Mail, Calendar, ShieldCheck } from 'lucide-react';
+import { Mail, Calendar, ShieldCheck, Check, AlertCircle } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -19,14 +14,11 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  useEffect(() => { loadProfile(); }, []);
 
   const loadProfile = async () => {
     try {
@@ -37,10 +29,7 @@ export default function SettingsPage() {
       setLastName(data.lastName ?? '');
       setEmail(data.email ?? '');
     } catch (err: any) {
-      if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
-        router.push('/login');
-        return;
-      }
+      if (err.message?.includes('401') || err.message?.includes('Unauthorized')) { router.push('/login'); return; }
       setError(err.message || 'Failed to load profile');
     } finally {
       setLoading(false);
@@ -51,12 +40,7 @@ export default function SettingsPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
-
-    if (!firstName.trim()) {
-      setError('First name is required');
-      return;
-    }
-
+    if (!firstName.trim()) { setError('First name is required'); return; }
     setSaving(true);
     try {
       const updated = await updateMyProfile({
@@ -66,6 +50,7 @@ export default function SettingsPage() {
       });
       setUser(updated);
       setSuccess('Profile updated successfully');
+      setTimeout(() => setSuccess(''), 4000);
     } catch (err: any) {
       setError(err.message || 'Failed to update profile');
     } finally {
@@ -73,12 +58,9 @@ export default function SettingsPage() {
     }
   };
 
-  const isDirty =
-    firstName !== (user?.firstName ?? '') ||
-    lastName !== (user?.lastName ?? '') ||
-    email !== (user?.email ?? '');
+  const isDirty = firstName !== (user?.firstName ?? '') || lastName !== (user?.lastName ?? '') || email !== (user?.email ?? '');
 
-  const getUserDisplayName = () => {
+  const getDisplayName = () => {
     if (!user) return 'User';
     if (user.firstName && user.lastName) return `${user.firstName} ${user.lastName}`;
     if (user.firstName) return user.firstName;
@@ -86,185 +68,184 @@ export default function SettingsPage() {
   };
 
   const getInitials = () => {
-    if (user?.firstName) {
-      return `${user.firstName.charAt(0)}${user.lastName?.charAt(0) ?? ''}`.toUpperCase();
-    }
-    return user?.email.charAt(0).toUpperCase() ?? 'U';
+    if (user?.firstName) return `${user.firstName[0]}${user.lastName?.[0] ?? ''}`.toUpperCase();
+    return user?.email[0].toUpperCase() ?? 'U';
   };
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   };
+
+  const inputClass = "w-full px-4 py-2.5 text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-xl placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all";
 
   if (loading) {
     return (
-      <MainLayout
-        userName={getUserDisplayName()}
-        userEmail={user?.email}
-        userRole={user?.role as 'ADMIN' | 'USER'}
-      >
-        <LoadingState message="Loading settings..." />
+      <MainLayout userName={getDisplayName()} userEmail={user?.email} userRole={user?.role as 'ADMIN' | 'USER'}>
+        <div className="max-w-2xl animate-pulse space-y-6">
+          <div className="h-8 w-32 bg-gray-100 rounded-lg" />
+          <div className="h-24 bg-gray-100 rounded-2xl" />
+          <div className="h-64 bg-gray-100 rounded-2xl" />
+          <div className="h-40 bg-gray-100 rounded-2xl" />
+        </div>
       </MainLayout>
     );
   }
 
   return (
-    <MainLayout
-      userName={getUserDisplayName()}
-      userEmail={user?.email}
-      userRole={user?.role as 'ADMIN' | 'USER'}
-    >
+    <MainLayout userName={getDisplayName()} userEmail={user?.email} userRole={user?.role as 'ADMIN' | 'USER'}>
       <div className="max-w-2xl space-y-6">
-        {/* Page header */}
+
+        {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage your account profile and preferences</p>
+          <p className="mt-1 text-sm text-gray-500">Manage your account and preferences</p>
         </div>
 
+        {/* Alerts */}
         {success && (
-          <Alert variant="success" onClose={() => setSuccess('')}>
-            {success}
-          </Alert>
+          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
+            <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+            <p className="text-sm text-green-700">{success}</p>
+          </div>
         )}
         {error && (
-          <Alert variant="error" onClose={() => setError('')}>
-            {error}
-          </Alert>
+          <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
+            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            <p className="text-sm text-red-700">{error}</p>
+            <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600 text-lg leading-none">×</button>
+          </div>
         )}
 
-        {/* Avatar + account summary */}
-        <Card>
-          <CardContent>
-            <div className="flex items-center gap-5">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-                {getInitials()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-lg font-semibold text-gray-900 truncate">{getUserDisplayName()}</p>
-                <p className="text-sm text-gray-500 truncate">{user?.email}</p>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <Badge variant={user?.role === 'ADMIN' ? 'warning' : 'primary'} size="sm">
-                    {user?.role === 'ADMIN' ? 'Admin' : 'User'}
-                  </Badge>
-                </div>
-              </div>
+        {/* Profile card */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+              {getInitials()}
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-semibold text-gray-900">{getDisplayName()}</p>
+              <p className="text-sm text-gray-400 truncate">{user?.email}</p>
+              <span className={`inline-flex items-center mt-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${
+                user?.role === 'ADMIN' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {user?.role === 'ADMIN' ? 'Administrator' : 'User'}
+              </span>
+            </div>
+          </div>
+        </div>
 
         {/* Edit profile */}
-        <Card>
-          <CardHeader
-            title="Profile"
-            subtitle="Update your name and email address"
-          />
-          <CardContent>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    First name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    maxLength={100}
-                    required
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    placeholder="First name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Last name
-                  </label>
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    maxLength={100}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    placeholder="Last name"
-                  />
-                </div>
-              </div>
-
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-50">
+            <h2 className="text-sm font-semibold text-gray-900">Profile</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Update your name and email address</p>
+          </div>
+          <form onSubmit={handleSave} className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <span className="flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5" />
-                    Email address
-                  </span>
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  First name <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  maxLength={100}
                   required
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="you@example.com"
+                  placeholder="First name"
+                  className={inputClass}
                 />
               </div>
-
-              <div className="flex justify-end pt-2">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={saving || !isDirty}
-                >
-                  {saving ? 'Saving...' : 'Save changes'}
-                </Button>
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1.5">Last name</label>
+                <input
+                  id="lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  maxLength={100}
+                  placeholder="Last name"
+                  className={inputClass}
+                />
               </div>
-            </form>
-          </CardContent>
-        </Card>
+            </div>
 
-        {/* Account details (read-only) */}
-        <Card>
-          <CardHeader
-            title="Account details"
-            subtitle="Information about your account"
-          />
-          <CardContent>
-            <dl className="space-y-4">
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <dt className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4" />
-                  Platform role
-                </dt>
-                <dd>
-                  <Badge variant={user?.role === 'ADMIN' ? 'warning' : 'primary'}>
-                    {user?.role === 'ADMIN' ? 'Administrator' : 'User'}
-                  </Badge>
-                </dd>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5" />
+                  Email address
+                </span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@example.com"
+                className={inputClass}
+              />
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={saving || !isDirty}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Saving...
+                  </>
+                ) : 'Save changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Account details */}
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-50">
+            <h2 className="text-sm font-semibold text-gray-900">Account details</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Read-only information about your account</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            <div className="flex items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <ShieldCheck className="w-4 h-4" />
+                Platform role
               </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <dt className="text-sm font-medium text-gray-500 flex items-center gap-2">
+              <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                user?.role === 'ADMIN' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {user?.role === 'ADMIN' ? 'Administrator' : 'User'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Calendar className="w-4 h-4" />
+                Member since
+              </div>
+              <span className="text-sm text-gray-700">{formatDate(user?.createdAt)}</span>
+            </div>
+            {user?.lastLoginAt && (
+              <div className="flex items-center justify-between px-6 py-4">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Calendar className="w-4 h-4" />
-                  Member since
-                </dt>
-                <dd className="text-sm text-gray-700">{formatDate(user?.createdAt)}</dd>
-              </div>
-
-              {user?.lastLoginAt && (
-                <div className="flex items-center justify-between py-2">
-                  <dt className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Last login
-                  </dt>
-                  <dd className="text-sm text-gray-700">{formatDate(user.lastLoginAt)}</dd>
+                  Last login
                 </div>
-              )}
-            </dl>
-          </CardContent>
-        </Card>
+                <span className="text-sm text-gray-700">{formatDate(user.lastLoginAt)}</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </MainLayout>
   );
