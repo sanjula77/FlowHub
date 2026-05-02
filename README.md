@@ -26,7 +26,7 @@ The platform enforces **dual-layer access control**:
 - **Platform roles** — `ADMIN` (full access) and `USER` (scoped access) assigned at the system level
 - **Team roles** — `OWNER` and `MEMBER` assigned per team, stored in the `team_members` join table
 
-The first user to register is automatically promoted to `ADMIN` via a race-condition-safe database transaction.
+Admin assignment follows a two-tier priority: if `INITIAL_ADMIN_EMAIL` is set in the environment, that account is always created as `ADMIN` on startup via `BootstrapService`. Otherwise, the first user to register is assigned `ADMIN` — determined inside a database transaction with `LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE` to prevent race conditions.
 
 ---
 
